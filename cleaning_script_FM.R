@@ -1,6 +1,12 @@
 
-# This will be a full script that will allow for raw iVMS and logbook data to be cleaned, formatted and joined for reports
-# Original scripts were made by Isobel Bloor and Matt Coleman. This new script has been created by Fraser Masterson.
+## This script allows for raw iVMS and logbook data to be cleaned, formatted and joined for reports
+## Currently cleans and formats static gear types (originally used for Isle of Man crab, lobster and whelk fisheries)
+## To be used in conjunction with 'iVMS and Logbook Cleaner.R'
+## Original scripts were made by Dr Isobel Bloor and Dr Matt Coleman (Bangor University). 
+
+## -------------------------------------------------------------------------------
+## Author: Fraser Masterson; Thu Nov 6 2025
+
 
 require(dplyr)
 require(tidyverse)
@@ -261,9 +267,7 @@ suppressWarnings(suppressMessages({
   #4 = multiple fish only (any species)
   #5 = fish with Crab and/or lobster and/or whelk
   
-  #Some columns need removing to match with O10 dataset
-  newlogbook7 <- newlogbook6 %>% dplyr::select(-c(find.duplicate, xcheck.duplicate, NOTE))
-  newlogbook7 <- filter(newlogbook7, LE_YEAR %in% years) 
+  newlogbook7 <- filter(newlogbook6, LE_YEAR %in% years) 
   write_csv(newlogbook7, paste0(output_dir, "/u10log_cleaned.csv"))
   
   
@@ -361,7 +365,7 @@ suppressWarnings(suppressMessages({
   
   over10.3 <- left_join(over10.2, o10.2, by = 'uniqueID')
   
-  write_csv(over10.3, paste0(output_dir, "/010log_cleaned.csv"))
+  write_csv(over10.3, paste0(output_dir, "/O10log_cleaned.csv"))
   print('Logbook over 10s cleaning complete.')
   
   
@@ -369,13 +373,21 @@ suppressWarnings(suppressMessages({
   # 1C: Logbook Joining ----
   
   newlogbook2 <- read.csv(paste0(output_dir, "/u10log_cleaned.csv"))
-  over10.1 <- read.csv(paste0(output_dir, "/010log_cleaned.csv"))
+  over10.1 <- read.csv(paste0(output_dir, "/O10log_cleaned.csv"))
   
   df4 <- plyr::rbind.fill(newlogbook2, over10.1)
   
-  pot.limit <- read.csv(potlimit_dir)
-  
-  df5 <- left_join(df4, pot.limit, by = "RSS.No")
+  if (include_potlimit == TRUE) {
+    
+    pot.limit <- read.csv(potlimit_dir)
+    df5 <- left_join(df4, pot.limit, by = "RSS.No")
+    
+  }
+  else {
+    
+    df5 = df4
+    
+  }
   
   write_csv(df5, paste0(output_dir, "/combinedlog_O10_U10m.csv"))
   print('Logbook joining complete.')

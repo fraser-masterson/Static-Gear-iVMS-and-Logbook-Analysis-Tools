@@ -7,8 +7,10 @@ rm(list = ls()) # clear the environment
 
 under10log_dir = '~/Documents/IoM 2025/Data/Raw/LB_Under10m/Under10m.csv' # directory for .csv containing all logbook entries for vessels under 10 m (e.g., '~/Documents/Under10m.csv')
 over10log_dir = '~/Documents/IoM 2025/Data/Raw/LB_Over10m/O10_Logbook.csv' # directory for .csv containing all logbook entries for vessels over 10 m (e.g., '~/Documents/Over10m.csv')
-potlimit_dir = '~/Documents/IoM 2025/Data/Raw/Pots/PotLimitsVessel.csv' # directory for .csv containing all pot limits for vessels (e.g., '~/Documents/PotLimits.csv')
 iVMS_dir = '~/Documents/IoM 2025/Data/Raw/iVMS' # directory for iVMS folder containing all .csv files of iVMS data (must have 'iVMS' in file names)
+
+include_potlimit = TRUE # if TRUE, attach pot limit data to output (add dir below if TRUE, otherwise set to '')
+potlimit_dir = '~/Documents/IoM 2025/Data/Raw/Pots/PotLimitsVessel.csv' # directory for .csv containing all pot limits for vessels (e.g., '~/Documents/PotLimits.csv')
 
 uk_shapefile_dir = '~/Documents/IoM 2025/Data/Raw/Shapefiles/CoastlineUK_and_IOM.shp'
 nm12_shapefile_dir = '~/Documents/IoM 2025/Data/Raw/Shapefiles/Base/IoM_12nm_marbdy_arc_bng.shp'
