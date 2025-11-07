@@ -13,7 +13,7 @@ Isle of Man (IoM) static gear fishery, so will need adjusting if used outside of
 
 ## Contents
 1. **iVMS and Logbook Cleaner**: cleaning and merging raw iVMS and logbook data.
-2. **Static Gear Reports**: creating PDF reports for the overall static gear fishery.
+2. **Static Gear Reports**: creating PDF reports for a given static gear fishery (currently crab & lobster, or whelk).
 3. **Autonomous Vessel Reports**: creating PDF reports for individual vessels.
 
 <br />
