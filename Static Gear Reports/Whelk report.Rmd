@@ -1,0 +1,536 @@
+---
+title: "IoM Whelk Pot Fishery: Static Gear Report"
+subtitle: "`r paste(format_with_suffix(start_date), ' - ', format_with_suffix(end_date), sep = '')`"
+output:
+  pdf_document: default
+  fig_caption: yes
+  params:
+    quarter: ""
+---
+
+```{css Centre title and subtitle, echo=FALSE}
+h1.title, h2.subtitle, h3.subtitle {
+  text-align: center;
+}
+```
+
+```{r Get basic metrics of fleet, echo = FALSE, warning = FALSE, error = FALSE}
+
+logbook$Departure.Date = as.POSIXct(logbook$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+logbook_filtered = filter(logbook, Departure.Date <= end_date & Departure.Date >= start_date)
+whelk = filter(logbook_filtered, LE_KG_WHE > 0 | Pot_No_WHE > 0)
+
+whelksum = whelk %>%
+  group_by(uniqueID) %>%
+  summarise(pots = first(Pot_No_WHE),
+            kg = first(LE_KG_WHE))
+
+whelksum$LPUE = whelksum$kg / whelksum$pots
+
+pot_sum = as.numeric(sum(whelksum$pots))
+kg_sum = as.numeric(sum(whelksum$kg))
+```
+
+## Total and Cumulative landings
+
+Between **`r paste(format_with_suffix(start_date), 'and', format_with_suffix(end_date), sep = ' ')`**, landings for the whelk pot fishery were **`r round(kg_sum/1000, digits = 2)` t**, with **`r length(unique(whelk$Vessel.Name))` unique active vessels** and **`r nrow(whelksum)` fishing trips** recorded throughout the period.
+
+```{r Plot of total whelk vessel activity, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, warning = FALSE, error = FALSE, message = FALSE, fig.cap = paste('Total whelk pot fishing activity between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Fishing activity defined as any fishing trip with landings of whelk (>0 kg), including both single-species and mixed-species trips.', sep = '')}
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5_filtered = filter(Join5, Departure.Date <= end_date & Departure.Date >= start_date)
+whelk = filter(Join5_filtered, LE_KG_WHE > 0 & Pot_No_WHE > 0 & LE_KG_LBE == 0 & LE_KG_CRE == 0)
+df_sf <- st_as_sf(whelk, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+df_sf_27700 <- st_transform(df_sf, crs = 27700)
+whelk$eastings <- st_coordinates(df_sf_27700)[,1] 
+whelk$northings <- st_coordinates(df_sf_27700)[,2]
+
+whelk$eastings_1000m <- round(whelk$eastings, -3)
+whelk$northings_1000m <- round(whelk$northings, -3)
+
+grid_counts = whelk %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(n = n()) %>%
+  ungroup()
+
+r <- rasterFromXYZ(grid_counts[, c("eastings_1000m", "northings_1000m", "n")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+whelk_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+
+whelk_points$group = NA
+for (i in 1:nrow(whelk_points)) {
+  if (isTRUE(whelk_points$n[i] < 100)) {
+    whelk_points$group[i] = '0-100'
+  }
+  if (isTRUE(whelk_points$n[i] >= 100 && whelk_points$n[i] < 200)) {
+    whelk_points$group[i] = '100-200'
+  }
+  if (isTRUE(whelk_points$n[i] >= 200 && whelk_points$n[i] < 300)) {
+    whelk_points$group[i] = '200-300'
+  }
+  if (isTRUE(whelk_points$n[i] >= 300 && whelk_points$n[i] < 400)) {
+    whelk_points$group[i] = '300-400'
+  }
+  if (isTRUE(whelk_points$n[i] >= 400 && whelk_points$n[i] < 500)) {
+    whelk_points$group[i] = '400-500'
+  }
+  if (isTRUE(whelk_points$n[i] >= 500 && whelk_points$n[i] < 600)) {
+    whelk_points$group[i] = '500-600'
+  }
+  if (isTRUE(whelk_points$n[i] >= 600 && whelk_points$n[i] < 700)) {
+    whelk_points$group[i] = '600-700'
+  }
+  if (isTRUE(whelk_points$n[i] >= 700 && whelk_points$n[i] < 800)) {
+    whelk_points$group[i] = '700-800'
+  }
+  if (isTRUE(whelk_points$n[i] >= 800 && whelk_points$n[i] < 900)) {
+    whelk_points$group[i] = '800-900'
+  }
+  if (isTRUE(whelk_points$n[i] >= 900 && whelk_points$n[i] < 1000)) {
+    whelk_points$group[i] = '900-1000'
+  }
+  if (isTRUE(whelk_points$n[i] >= 1000)) {
+    whelk_points$group[i] = '> 1000'
+  }
+}
+
+ggplot() +
+  geom_tile(data = whelk_points, aes(x = x, y = y, fill = n)) +
+  scale_fill_viridis_c(name = 'iVMS Pings') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Plot of unique vessels, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, warning = FALSE, error = FALSE, message = FALSE, fig.cap = paste('Number of unique whelk fishing vessels (>0 kg whelk landed during a trip) per km² between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+
+grid_counts = whelk %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(n = length(unique(Vessel.Name))) %>%
+  ungroup()
+
+r <- rasterFromXYZ(grid_counts[, c("eastings_1000m", "northings_1000m", "n")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+vessel_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+vessel_points$n = round(vessel_points$n, digits = 0)
+
+ggplot() +
+  geom_tile(data = vessel_points, aes(x = x, y = y, fill = as.factor(n))) +
+  scale_fill_viridis_d(name = 'Unique
+Vessels') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Get monthly landings and LPUE data for plots, echo = FALSE, message = FALSE, warning = FALSE}
+logbook$Departure.Date = as.POSIXct(logbook$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+{
+  if (quarter == 'All') {
+    logbook_filtered = logbook
+  }
+  else if (quarter == 'Custom') {
+    logbook_filtered = filter(logbook, Departure.Date >= start_date 
+                              & Departure.Date <= end_date)
+  }
+  else {
+    logbook_filtered = filter(logbook, grepl(year, Departure.Date) == 'TRUE')
+  }
+}
+whelk = filter(logbook_filtered, LE_KG_WHE > 0 & Pot_No_WHE > 0 & LE_KG_LBE == 0 & LE_KG_CRE == 0 & Departure.Date <= end_date)
+whelk$month = months.POSIXt(whelk$Departure.Date, abbreviate = TRUE)
+
+whelk_vessels = whelk %>%
+  group_by(uniqueID) %>%
+  summarise(month = month, 
+            year = LE_YEAR,
+            pots = first(Pot_No_WHE),
+            kg = first(LE_KG_WHE))
+
+whelk_vessels$LPUE = whelk_vessels$kg / whelk_vessels$pots
+
+whelk_vessels = filter(whelk_vessels, is.na(LPUE) == 'FALSE' & is.infinite(LPUE) == 'FALSE')
+
+whelksum = whelk_vessels %>%
+  group_by(month, year) %>%
+  summarise(pots_mean = mean(pots),
+            pots_lower = quantile(pots, 0.25),
+            pots_upper = quantile(pots, 0.75),
+            kg_mean = mean(kg),
+            kg_sum = sum(kg),
+            kg_lower = quantile(kg, 0.25),
+            kg_upper = quantile(kg, 0.75),
+            lpue_mean = mean(LPUE),
+            lpue_lower = quantile(LPUE, 0.25),
+            lpue_upper = quantile(LPUE, 0.75))
+whelksum$month <- factor(whelksum$month, levels = month.abb) # put the months in the right order
+```
+
+```{r Get monthly LPUE and landing averages between reference period of 2010-2015, echo = FALSE, message = FALSE, warning = FALSE}
+whelk_ref$Date = as.POSIXct(whelk_ref$Date, format = '%d/%m/%Y', tz = 'UTC')
+whelk_ref$month = months.POSIXt(whelk_ref$Date, abbreviate = TRUE)
+whelk_ref$year = substr(whelk_ref$Date, 1, 4)
+whelk_ref = filter(whelk_ref, year == '2010' | year == '2011' | year == '2012' | year == '2013' | year == '2014' | year == '2015')
+
+whelk_ref$lpue = as.numeric(whelk_ref$bu_retained) / as.numeric(whelk_ref$wp_hauled)
+whelk_ref$bu_retained = as.numeric(whelk_ref$bu_retained)
+whelk_ref = filter(whelk_ref, is.na(lpue) == 'FALSE' & is.infinite(lpue) == 'FALSE')
+
+
+whelk_refyear = whelk_ref %>%
+  group_by(year, month) %>%
+  summarise(kg_sum = sum(bu_retained),
+            lpue_mean = mean(lpue),
+            lpue_lower = quantile(lpue, 0.25),
+            lpue_upper = quantile(lpue, 0.75))
+
+whelk_refsum = whelk_refyear %>%
+  group_by(month) %>%
+  summarise(kg = mean(kg_sum),
+            lpue = mean(lpue_mean),
+            lpue_l = mean(lpue_lower),
+            lpue_u = mean(lpue_upper))
+
+whelk_refsum$month = factor(whelk_refsum$month, levels = month.abb)
+```
+
+```{r Plot monthly landings data, echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('Monthly average landings (t) of whelk in the Isle of Man between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = ''), fig.height = if_else(length(unique(whelksum$year)) > 1, 8, 6)}
+ggplot(data = whelksum, aes(x = as.numeric(month), y = kg_sum/1000)) +
+  facet_wrap(~ `year`, ncol = 1) +
+  geom_point(aes(color = 'Observed')) +
+  geom_line(aes(color = 'Observed')) +
+  geom_line(data = whelk_refsum, aes(x = as.numeric(month), y = kg / 1000, color = "2010-2015 Reference"), linetype = "solid", alpha = 0.5) +
+  geom_point(data = whelk_refsum, aes(x = as.numeric(month), y = kg / 1000, color = "2010-2015 Reference"), alpha = 0.5) +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) + 
+  scale_color_manual(name = '', values = c('Observed' = 'black', '2010-2015 Reference' = 'red')) +
+  xlab('') +
+  ylab('Landings (t)') +
+  theme_classic() +
+  theme(legend.position = c(0.15, 0.95),
+        legend.background = element_blank())
+```
+
+\
+\
+
+```{r Plot monthly LPUE data, echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('Monthly average landings per unit effort (LPUE) of whelk in the Isle of Man between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Lower and upper error bars represent respective 25% and 75% LPUE quantiles for that month.', sep = ''), fig.height = if_else(length(unique(whelksum$year)) > 1, 8, 6)}
+ggplot(data = whelksum, aes(x = as.numeric(month), y = lpue_mean)) +
+  facet_wrap(~ `year`, ncol = 1) +
+  geom_line(data = whelk_refsum, aes(x = as.numeric(month), y = lpue, color = "2010-2015 Reference"), 
+            linetype = "solid", alpha = 0.5) +  # Add color for the red dotted line
+  geom_point(data = whelk_refsum, aes(x = as.numeric(month), y = lpue, color = "2010-2015 Reference"), alpha = 0.5) +  # Add color for the red points
+  geom_errorbar(data = whelk_refsum, aes(x = as.numeric(month), y = lpue, ymin = lpue_l, ymax = lpue_u), 
+                width = 0.25, col = 'red', linetype = 'solid', alpha = 0.5) +
+  geom_point(aes(color = "Observed")) +  # Add color for points
+  geom_line(aes(color = "Observed")) +  # Add color for the line
+  scale_x_continuous(breaks = 1:12, labels = month.abb) + 
+  geom_errorbar(aes(ymin = lpue_lower, ymax = lpue_upper), width = 0.25) +
+  xlab('') +
+  ylab('Landings per unit effort (LPUE)') +
+  scale_color_manual(name = "", values = c("Observed" = "black", "2010-2015 Reference" = "red")) +  # Customize legend
+  theme_classic() +
+  theme(legend.position = c(0.15 ,0.95),
+        legend.background = element_blank())
+```
+
+\
+\
+
+```{r Make plot of LPUE distribution, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), message = FALSE, warning = FALSE, echo = FALSE, error = FALSE, fig.cap = paste('Average landings per unit effort (LPUE, kg per pot) of whelk per km² between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. LPUE calculated for each trip by dividing the total catch of whelk by the number of hauled whelk pots.', sep = '')}
+
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5_filtered = filter(Join5, Departure.Date < end_date & Departure.Date > start_date)
+whelk = filter(Join5_filtered, LE_KG_WHE > 0 & Pot_No_WHE > 0 & LE_KG_LBE == 0 & LE_KG_CRE == 0)
+df_sf <- st_as_sf(whelk, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+df_sf_27700 <- st_transform(df_sf, crs = 27700)
+whelk$eastings <- st_coordinates(df_sf_27700)[,1] 
+whelk$northings <- st_coordinates(df_sf_27700)[,2]
+
+whelk$eastings_1000m <- round(whelk$eastings, -3)
+whelk$northings_1000m <- round(whelk$northings, -3)
+
+grid_lpue = whelk %>%
+  group_by(eastings_1000m, northings_1000m, uniqueID) %>%
+  summarise(kg = first(LE_KG_WHE),
+            pots = first(Pot_No_WHE))
+
+grid_lpue$lpue = grid_lpue$kg / grid_lpue$pots
+
+grid_lpue_new = grid_lpue %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(LPUE = mean(lpue))
+
+r <- rasterFromXYZ(grid_lpue_new[, c("eastings_1000m", "northings_1000m", "LPUE")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+lpue_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+
+ggplot() +
+  geom_tile(data = lpue_points, aes(x = x, y = y, fill = LPUE)) +
+  scale_fill_viridis_c(name = 'LPUE') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Make plot of effort distribution, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), message = FALSE, warning = FALSE, echo = FALSE, error = FALSE, fig.cap = paste('Whelk pots hauled per km² between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5_filtered = filter(Join5, Departure.Date < end_date & Departure.Date > start_date)
+whelk = filter(Join5_filtered, LE_KG_WHE > 0 & Pot_No_WHE > 0 & LE_KG_LBE == 0 & LE_KG_CRE == 0)
+df_sf <- st_as_sf(whelk, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+df_sf_27700 <- st_transform(df_sf, crs = 27700)
+whelk$eastings <- st_coordinates(df_sf_27700)[,1] 
+whelk$northings <- st_coordinates(df_sf_27700)[,2]
+
+whelk$eastings_1000m <- round(whelk$eastings, -3)
+whelk$northings_1000m <- round(whelk$northings, -3)
+
+grid_pots = whelk %>%
+  group_by(eastings_1000m, northings_1000m, uniqueID) %>%
+  summarise(pots = first(Pot_No_WHE))
+
+grid_pots_new = grid_pots %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(pot_sum = sum(pots))
+
+r <- rasterFromXYZ(grid_pots_new[, c("eastings_1000m", "northings_1000m", "pot_sum")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+lpue_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+
+ggplot() +
+  geom_tile(data = lpue_points, aes(x = x, y = y, fill = pot_sum)) +
+  scale_fill_viridis_c(name = 'Pots Hauled') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Getting point-polygon overlap for 12nm zones, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('iVMS records with whelk catch within the 12 nm management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5$month = months.POSIXt(Join5$Departure.Date, abbreviate = TRUE)
+whelk = filter(Join5, LE_KG_WHE > 0 & Pot_No_WHE > 0 & LE_KG_LBE == 0 & LE_KG_CRE == 0)
+whelk$month = months.POSIXt(whelk$Departure.Date, abbreviate = TRUE)
+
+whelk_sf <- st_as_sf(whelk, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+whelk_sf <- st_transform(whelk_sf, st_crs(whelk_zones))
+whelk_joined <- st_join(whelk_sf, whelk_zones, join = st_intersects)
+
+whelk_joined <- whelk_joined %>%
+  mutate(SI_LONG = st_coordinates(.)[,1],
+         SI_LATI = st_coordinates(.)[,2])
+
+whelk_withzones <- as.data.frame(st_drop_geometry(whelk_joined))
+
+
+
+whelk_withzones_filtered = filter(whelk_withzones, Departure.Date < end_date & Departure.Date > start_date)
+
+ggplot() +
+  geom_sf(data = whelk_zones, aes(fill = as.factor(Zone)), col = 'transparent', alpha = 0.5) +
+  geom_point(data = filter(whelk_withzones_filtered, is.na(id) == 'FALSE'), aes(x = SI_LONG, y = SI_LATI), col = 'black', size = 0.01, pch = 19) +
+  geom_sf(data = IoM, fill = 'grey') +
+  labs(fill = 'Zone') +
+  xlab('') +
+  ylab('') +
+  theme_bw()
+```
+
+\
+\
+
+```{r Get basic metrics of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+zones_grouped = whelk_withzones_filtered %>%
+  group_by(VE_REF, uniqueID, month, Zone) %>%
+  summarise(kg = first(LE_KG_WHE),
+            pots = first(Pot_No_WHE))
+zones_grouped = na.omit(zones_grouped)
+
+number_of_zones = zones_grouped %>%
+  group_by(uniqueID) %>%
+  summarise(n = n())
+
+zones_grouped$kg_new = NA
+zones_grouped$pots_new = NA
+for (i in 1:nrow(zones_grouped)) { # if fishing occurred over multiple zones, distribute catch and pots evenly
+  for (j in 1:nrow(number_of_zones)) {
+    if (isTRUE(zones_grouped$uniqueID[i] == number_of_zones$uniqueID[j])) {
+      zones_grouped$kg_new[i] = zones_grouped$kg[i] / number_of_zones$n[j]
+      zones_grouped$pots_new[i] = zones_grouped$pots[i] / number_of_zones$n[j]
+    }
+  }
+}
+
+zones_grouped$lpue = zones_grouped$kg_new / zones_grouped$pots_new
+zones_grouped = filter(zones_grouped, is.na(lpue) == 'FALSE' & is.infinite(lpue) == 'FALSE')
+
+# Overall metrics for quarter
+zone_metrics = filter(zones_grouped, is.na(Zone) == 'FALSE') %>%
+  group_by(Zone) %>%
+  summarise('Unique vessels' = length(unique(VE_REF)),
+            'Landings (t)' = sum(kg_new)/1000,
+            'Pots hauled' = sum(pots_new),
+            'Mean LPUE' = mean(lpue))
+
+colnames(zone_metrics)[1] = 'Management Zone'
+```
+
+\
+\
+\
+\
+\
+
+```{r Make table of summary zone metrics, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+knitr::kable(zone_metrics, row.names = FALSE, align = "lccc", caption = paste("Landings and LPUE of whelk pot fishing in management zones between ", format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')) %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% # make left column wider to increase table size
+    column_spec(1, width = "4cm")
+```
+
+\
+\
+
+```{r Calculate monthly LPUE and catch metrics of each zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+zones_grouped2 = filter(whelk_withzones, Departure.Date <= end_date 
+                        & Departure.Date >= start_date) %>%
+  group_by(uniqueID, month, Zone) %>%
+  summarise(kg = first(LE_KG_WHE),
+            pots = first(Pot_No_WHE))
+zones_grouped2 = na.omit(zones_grouped2)
+
+number_of_zones = zones_grouped2 %>%
+  group_by(uniqueID) %>%
+  summarise(n = n())
+
+zones_grouped2$kg_new = NA
+zones_grouped2$pots_new = NA
+for (i in 1:nrow(zones_grouped2)) { # if fishing occurred over multiple zones, distribute catch and pots evenly
+  for (j in 1:nrow(number_of_zones)) {
+    if (isTRUE(zones_grouped2$uniqueID[i] == number_of_zones$uniqueID[j])) {
+      zones_grouped2$kg_new[i] = zones_grouped2$kg[i] / number_of_zones$n[j]
+      zones_grouped2$pots_new[i] = zones_grouped2$pots[i] / number_of_zones$n[j]
+    }
+  }
+}
+
+zones_grouped2$lpue = zones_grouped2$kg_new / zones_grouped2$pots_new
+
+# Overall metrics for quarter
+zone_metrics_monthly = zones_grouped2 %>%
+  group_by(Zone, month) %>%
+  summarise('Landings (t)' = sum(kg_new)/1000,
+            'Pots hauled' = sum(pots_new),
+            'Mean LPUE' = mean(lpue),
+            lpue_lower = quantile(lpue, 0.25),
+            lpue_upper = quantile(lpue, 0.75))
+
+colnames(zone_metrics_monthly)[1] = 'Management Zone'
+colnames(zone_metrics_monthly)[2] = 'Month'
+
+zone_metrics_monthly$Month = factor(zone_metrics_monthly$Month, levels = month.abb)
+```
+
+```{r Make table of unique vessel names for each zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+zone_vessnames = zones_grouped %>%
+  group_by(Zone) %>%
+  summarise('Vessels' = paste(unique(VE_REF), collapse = ", "))
+
+colnames(zone_vessnames)[1] = 'Management zone'
+
+knitr::kable(zone_vessnames, row.names = FALSE, align = "ll", caption = 'Unique vessel numbers for each management zone.') %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% # make left column wider to increase table size
+    column_spec(1, width = "4cm")
+```
+
+\
+\
+\
+\
+\
+
+```{r Plot monthly catch of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.height = 5, fig.cap = paste('Total monthly landings (t) of whelk within the IoM management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+ggplot(data = zone_metrics_monthly, aes(x = as.numeric(Month), y = `Landings (t)`, col = `Management Zone`)) +
+  geom_point() +
+  scale_x_continuous(breaks = 1:12, limits = c(1, 12)) +
+  xlab('Month') +
+  geom_line() +
+  facet_wrap(~ paste0('Zone ', `Management Zone`), ncol = 3) +
+  theme_classic() +
+  theme(legend.position = 'FALSE')
+```
+
+\
+\
+\
+
+```{r Plot monthly LPUE of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.height = 5, fig.cap = paste('Mean monthly landings per unit effort (LPUE) of whelk pot fishing within the IoM management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Lower and upper error bars represent respective 25% and 75% LPUE quantiles for that month.', sep = '')}
+
+ggplot(data = filter(zone_metrics_monthly, is.infinite(`Mean LPUE`) == 'FALSE' & is.na(`Mean LPUE`) == 'FALSE'), aes(x = as.numeric(Month), y = `Mean LPUE`, col = `Management Zone`)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = lpue_lower, ymax = lpue_upper), width = 0.25) +
+  scale_x_continuous(breaks = 1:12, limits = c(1,12)) + 
+  xlab('Month') +
+  geom_line() +
+  facet_wrap(~ paste0('Zone ', `Management Zone`), ncol = 3) +
+  theme_classic() +
+  theme(legend.position = 'FALSE')
+```
+
+\
+\
+
+```{r GAM of whelk LPUE, message = FALSE, warning = FALSE, echo = FALSE, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), fig.cap = paste('Landings per unit effort (LPUE) of whelk between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Points represent trips where only whelk was caught. The blue line represents the generalised additive model (GAM) of whelk fishing trips.', sep = ' '), fig.height = if_else(length(unique(whelksum$year)) > 1, 8, 6)}
+logbook$Departure.Date = as.POSIXct(logbook$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+logbook_filtered = filter(logbook, Departure.Date <= end_date &
+                            Departure.Date >= start_date)
+lpue_all = logbook_filtered %>%
+  group_by(uniqueID, Departure.Date) %>%
+  summarise(year = first(LE_YEAR),
+            kg = first(LE_KG_WHE),
+            pots = first(Pot_No_WHE))
+
+lpue_all$lpue = lpue_all$kg / lpue_all$pots
+lpue_all = filter(lpue_all, is.infinite(lpue) == 'FALSE' & is.na(lpue) == 'FALSE')
+lpue_all <- lpue_all %>% # this makes a dummy date so facets don't have different scales
+  mutate(month_day = as.POSIXct(strftime(Departure.Date, format = "2000-%m-%d"),
+                                format = "%Y-%m-%d", tz = "UTC"))
+ggplot() +
+  geom_point(data = lpue_all, aes(x = month_day, y = lpue), alpha = 1, cex = 0.5) +
+  geom_smooth(data = lpue_all, aes(x = month_day, y = lpue)) +
+  facet_wrap(~ year, ncol = 1) +
+  xlab('Date') +
+  ylab('LPUE') +
+  scale_x_datetime(date_breaks = '1 month', date_labels = "%b") +
+  theme_classic() +
+  theme(legend.position = c(0.15, 0.8))
+```

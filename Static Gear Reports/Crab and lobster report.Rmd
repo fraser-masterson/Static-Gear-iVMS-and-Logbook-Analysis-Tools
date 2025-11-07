@@ -1,0 +1,844 @@
+---
+title: "IoM Crab and Lobster Fishery: Static Gear Report"
+subtitle: "`r paste(format_with_suffix(start_date), ' - ', format_with_suffix(end_date), sep = '')`"
+output:
+  pdf_document: default
+  fig_caption: yes
+  params:
+    quarter: ""
+---
+
+```{css Centre title and subtitle, echo=FALSE}
+h1.title, h2.subtitle, h3.subtitle {
+  text-align: center;
+}
+```
+
+```{r Get basic metrics of fleet, echo = FALSE, warning = FALSE, error = FALSE, message = FALSE}
+
+logbook$Departure.Date = as.POSIXct(logbook$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+logbook_filtered = filter(logbook, Departure.Date <= end_date & Departure.Date >= start_date)
+cl = filter(logbook_filtered, LE_KG_LBE > 0 | Pot_No_LBE > 0 | LE_KG_CRE > 0 | Pot_No_CRE > 0)
+
+clsum = cl %>%
+  group_by(uniqueID) %>%
+  summarise(pots = pmax(Pot_No_LBE, Pot_No_CRE),
+            kg = sum(LE_KG_LBE, LE_KG_CRE))
+
+pot_sum = as.numeric(sum(clsum$pots))
+kg_sum = as.numeric(sum(clsum$kg))
+```
+
+## Total and Cumulative landings
+
+Between **`r paste(format_with_suffix(start_date), 'and', format_with_suffix(end_date), sep = ' ')`**, landings for the crab and lobster pot fishery were **`r round(kg_sum/1000, digits = 2)` t**, with **`r length(unique(cl$Vessel.Name))` unique active vessels** and **`r nrow(clsum)` fishing trips** recorded throughout the year.
+
+```{r Plot of total crab and lobster vessel activity, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, warning = FALSE, error = FALSE, message = FALSE, fig.cap = paste('Total crab and lobster pot fishing activity between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Fishing activity defined as any fishing trip with landings of crab and/or lobster (>0 kg), including mixed-species trips.', sep = '')}
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5_filtered = filter(Join5, Departure.Date <= end_date & Departure.Date >= start_date)
+cl = filter(Join5_filtered, LE_KG_LBE > 0 | LE_KG_CRE > 0)
+df_sf <- st_as_sf(cl, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+df_sf_27700 <- st_transform(df_sf, crs = 27700)
+cl$eastings <- st_coordinates(df_sf_27700)[,1] 
+cl$northings <- st_coordinates(df_sf_27700)[,2]
+
+cl$eastings_1000m <- round(cl$eastings, -3)
+cl$northings_1000m <- round(cl$northings, -3)
+
+grid_counts = cl %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(n = n()) %>%
+  ungroup()
+
+r <- rasterFromXYZ(grid_counts[, c("eastings_1000m", "northings_1000m", "n")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+cl_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+
+cl_points$group = NA
+for (i in 1:nrow(cl_points)) {
+  if (isTRUE(cl_points$n[i] < 100)) {
+    cl_points$group[i] = '0-100'
+  }
+  if (isTRUE(cl_points$n[i] >= 100 && cl_points$n[i] < 200)) {
+    cl_points$group[i] = '100-200'
+  }
+  if (isTRUE(cl_points$n[i] >= 200 && cl_points$n[i] < 300)) {
+    cl_points$group[i] = '200-300'
+  }
+  if (isTRUE(cl_points$n[i] >= 300 && cl_points$n[i] < 400)) {
+    cl_points$group[i] = '300-400'
+  }
+  if (isTRUE(cl_points$n[i] >= 400 && cl_points$n[i] < 500)) {
+    cl_points$group[i] = '400-500'
+  }
+  if (isTRUE(cl_points$n[i] >= 500 && cl_points$n[i] < 600)) {
+    cl_points$group[i] = '500-600'
+  }
+  if (isTRUE(cl_points$n[i] >= 600 && cl_points$n[i] < 700)) {
+    cl_points$group[i] = '600-700'
+  }
+  if (isTRUE(cl_points$n[i] >= 700 && cl_points$n[i] < 800)) {
+    cl_points$group[i] = '700-800'
+  }
+  if (isTRUE(cl_points$n[i] >= 800 && cl_points$n[i] < 900)) {
+    cl_points$group[i] = '800-900'
+  }
+  if (isTRUE(cl_points$n[i] >= 900 && cl_points$n[i] < 1000)) {
+    cl_points$group[i] = '900-1000'
+  }
+  if (isTRUE(cl_points$n[i] >= 1000)) {
+    cl_points$group[i] = '> 1000'
+  }
+}
+
+ggplot() +
+  geom_tile(data = cl_points, aes(x = x, y = y, fill = n)) +
+  scale_fill_viridis_c(name = 'iVMS Pings') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Plot of unique vessels, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, warning = FALSE, error = FALSE, message = FALSE, fig.cap = paste('Number of unique crab and lobster fishing vessels (>0 kg crab and/or lobster landed during a trip) per km² between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+
+grid_counts = cl %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(n = length(unique(Vessel.Name))) %>%
+  ungroup()
+
+r <- rasterFromXYZ(grid_counts[, c("eastings_1000m", "northings_1000m", "n")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+vessel_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+vessel_points$n = round(vessel_points$n, digits = 0)
+
+ggplot() +
+  geom_tile(data = vessel_points, aes(x = x, y = y, fill = as.factor(n))) +
+  scale_fill_viridis_d(name = 'Unique
+Vessels') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Get monthly landings and LPUE data for plots, echo = FALSE, message = FALSE, warning = FALSE}
+logbook$Departure.Date = as.POSIXct(logbook$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+{
+  if (quarter == 'All') {
+    logbook_filtered = logbook
+  }
+  else if (quarter == 'Custom') {
+    logbook_filtered = filter(logbook, Departure.Date >= start_date 
+                              & Departure.Date <= end_date)
+  }
+  else {
+    logbook_filtered = filter(logbook, grepl(year, Departure.Date) == 'TRUE')
+  }
+}
+cl = filter(logbook_filtered, LE_KG_LBE > 0 | LE_KG_CRE > 0 | Pot_No_CRE > 0 | Pot_No_LBE > 0 )
+cl$month = months.POSIXt(cl$Departure.Date, abbreviate = TRUE)
+
+cl_vessels = cl %>%
+  group_by(uniqueID) %>%
+  summarise(month = month, 
+            year = LE_YEAR,
+            pots = max(pmax(Pot_No_CRE, Pot_No_LBE), na.rm = TRUE),
+            c_kg = first(LE_KG_CRE),
+            l_kg = first(LE_KG_LBE))
+
+cl_vessels$target = 'None'
+cl_vessels$target = if_else(cl_vessels$c_kg / (cl_vessels$c_kg + cl_vessels$l_kg) >= 0.8, 'Crab', cl_vessels$target)
+cl_vessels$target = if_else(cl_vessels$l_kg / (cl_vessels$c_kg + cl_vessels$l_kg) >= 0.8, 'Lobster', cl_vessels$target)
+
+cl_vessels$c_lpue = cl_vessels$c_kg / cl_vessels$pots
+cl_vessels$l_lpue = cl_vessels$l_kg / cl_vessels$pots
+
+cl_vessels = filter(cl_vessels, is.infinite(c_lpue) == 'FALSE' & is.infinite(l_lpue) == 'FALSE')
+
+clsum_year = cl_vessels %>%
+  group_by(year, month) %>%
+  summarise(pots_sum = sum(pots),
+            pots_lower = quantile(pots, 0.25),
+            pots_upper = quantile(pots, 0.75),
+            c_kg_mean = mean(c_kg),
+            c_kg_sum = sum(c_kg),
+            c_kg_lower = quantile(c_kg, 0.25),
+            c_kg_upper = quantile(c_kg, 0.75),
+            l_kg_mean = mean(l_kg),
+            l_kg_sum = sum(l_kg),
+            l_kg_lower = quantile(l_kg, 0.25),
+            l_kg_upper = quantile(l_kg, 0.75))
+clsum = clsum_year %>%
+  group_by(month) %>%
+  summarise(pots_sum = mean(pots_sum),
+            pots_lower = mean(pots_lower),
+            pots_upper = mean(pots_upper),
+            c_kg_mean = mean(c_kg_mean),
+            c_kg_sum = mean(c_kg_sum),
+            c_kg_lower = mean(c_kg_lower),
+            c_kg_upper = mean(c_kg_upper),
+            l_kg_mean = mean(l_kg_mean),
+            l_kg_sum = mean(l_kg_sum),
+            l_kg_lower = mean(l_kg_lower),
+            l_kg_upper = mean(l_kg_upper))
+
+# only calculating lpue for 'targetted' catch records (i.e., > 80% species catch)
+c_lpue = filter(cl_vessels, target == 'Crab') %>%
+  group_by(month) %>%
+  summarise(c_lpue_mean = mean(na.omit(c_lpue)),
+            c_lpue_median = median(na.omit(c_lpue)),
+            c_lpue_lower = quantile(na.omit(c_lpue), 0.25),
+            c_lpue_upper = quantile(na.omit(c_lpue), 0.75))
+
+l_lpue = filter(cl_vessels, target == 'Lobster') %>%
+  group_by(month) %>%
+  summarise(l_lpue_mean = mean(na.omit(l_lpue)),
+            l_lpue_median = median(na.omit(l_lpue)),
+            l_lpue_lower = quantile(na.omit(l_lpue), 0.25),
+            l_lpue_upper = quantile(na.omit(l_lpue), 0.75))
+
+clsum = left_join(clsum, c_lpue, by = 'month')
+clsum = left_join(clsum, l_lpue, by = 'month')
+
+clsum$month <- factor(clsum$month, levels = month.abb) # put the months in the right order
+```
+
+```{r Get monthly landing averages between reference period of 2010-2015, echo = FALSE, message = FALSE, warning = FALSE}
+cl_ref = data.frame('Date' = as.POSIXct(all_ref$Date, format = '%d/%m/%Y', tz = 'UTC'),
+                    'lp_hauled' = all_ref$lp_hauled,
+                    'hg_retained' = all_ref$hg_retained,
+                    'cp_retained' = all_ref$cp_retained)
+
+cl_ref$hg_retained = if_else(is.na(cl_ref$hg_retained), 0, cl_ref$hg_retained)
+cl_ref$cp_retained = if_else(is.na(cl_ref$cp_retained), 0, cl_ref$cp_retained)
+cl_ref = na.omit(cl_ref)
+
+cl_ref$month = months.POSIXt(cl_ref$Date, abbreviate = TRUE)
+cl_ref$year = substr(cl_ref$Date, 1, 4)
+
+cl_ref$target = 'None'
+cl_ref$target = if_else(cl_ref$cp_retained / (cl_ref$hg_retained + cl_ref$cp_retained) >= 0.8, 'Crab', cl_ref$target)
+cl_ref$target = if_else(cl_ref$hg_retained / (cl_ref$hg_retained + cl_ref$cp_retained) >= 0.8, 'Lobster', cl_ref$target)
+
+cl_ref = filter(cl_ref, year == '2010' | year == '2011' | year == '2012' | year == '2013' | year == '2014' | year == '2015')
+cl_ref = filter(cl_ref, lp_hauled > 0 & hg_retained > 0 | cp_retained > 0)
+
+cl_ref$c_lpue = as.numeric(cl_ref$cp_retained) / as.numeric(cl_ref$lp_hauled)
+cl_ref$l_lpue = as.numeric(cl_ref$hg_retained) / as.numeric(cl_ref$lp_hauled)
+
+cl_refyear = cl_ref %>%
+  group_by(year, month) %>%
+  summarise(c_kg_sum = sum(na.omit(cp_retained)),
+            l_kg_sum = sum(na.omit(hg_retained)),
+            pots_sum = sum(na.omit(lp_hauled)))
+# just get targetted catch lpue
+c_lpue = filter(cl_ref, target == 'Crab') %>%
+  group_by(year, month) %>%
+  summarise(c_lpue_mean = mean(na.omit(c_lpue)),
+            c_lpue_median = median(na.omit(c_lpue)),
+            c_lpue_upper = quantile(na.omit(c_lpue), 0.75),
+            c_lpue_lower = quantile(na.omit(c_lpue), 0.25))
+l_lpue = filter(cl_ref, target == 'Lobster') %>%
+  group_by(year, month) %>%
+  summarise(l_lpue_mean = mean(na.omit(l_lpue)),
+            l_lpue_median = median(na.omit(l_lpue)),
+            l_lpue_upper = quantile(na.omit(l_lpue), 0.75),
+            l_lpue_lower = quantile(na.omit(l_lpue), 0.25))
+
+cl_refyear = left_join(cl_refyear, c_lpue, by = c('year', 'month'))
+cl_refyear = left_join(cl_refyear, l_lpue, by = c('year', 'month'))
+# now it only has lpue for vessels targetting that species (> 80% catch)
+
+cl_refsum = cl_refyear %>%
+  group_by(month) %>%
+  summarise(c_kg = mean(c_kg_sum),
+            c_kg_upper = quantile(c_kg_sum, 0.75),
+            c_kg_lower = quantile(c_kg_sum, 0.25),
+            l_kg = mean(l_kg_sum),
+            l_kg_upper = quantile(l_kg_sum, 0.75),
+            l_kg_lower = quantile(l_kg_sum, 0.25),
+            pots_upper = quantile(pots_sum, 0.75),
+            pots_lower = quantile(pots_sum, 0.25),
+            pots_sum = mean(pots_sum))
+c_lpue = filter(cl_ref, target == 'Crab') %>%
+  group_by(month) %>%
+  summarise(c_lpue_mean = mean(na.omit(c_lpue)),
+            c_lpue_median = median(na.omit(c_lpue)),
+            c_lpue_upper = quantile(na.omit(c_lpue), 0.75),
+            c_lpue_lower = quantile(na.omit(c_lpue), 0.25))
+l_lpue = filter(cl_ref, target == 'Lobster') %>%
+  group_by(month) %>%
+  summarise(l_lpue_mean = mean(na.omit(l_lpue)),
+            l_lpue_median = median(na.omit(l_lpue)),
+            l_lpue_upper = quantile(na.omit(l_lpue), 0.75),
+            l_lpue_lower = quantile(na.omit(l_lpue), 0.25))
+
+cl_refsum = left_join(cl_refsum, c_lpue, by = 'month')
+cl_refsum = left_join(cl_refsum, l_lpue, by = 'month')
+
+cl_refsum$month = factor(cl_refsum$month, levels = month.abb)
+```
+
+```{r Plot monthly landings data, echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('Monthly average landings (t) of crab and lobster in the Isle of Man between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+
+clsum_long <- clsum %>%
+  pivot_longer(
+    cols = c(c_kg_sum, l_kg_sum),
+    names_to = "species",
+    values_to = "obs_kg"
+  ) %>%
+  mutate(species = ifelse(species == "c_kg_sum", "Crab", "Lobster"))
+
+cl_refsum_long <- cl_refsum %>%
+  pivot_longer(
+    cols = c(c_kg, l_kg),
+    names_to = "species",
+    values_to = "ref_kg"
+  ) %>%
+  mutate(species = ifelse(species == "c_kg", "Crab", "Lobster"))
+
+cl_refsum_long$ref_kg_lower = NA
+cl_refsum_long$ref_kg_upper = NA
+
+for (i in 1:nrow(cl_refsum_long)) {
+  for (j in 1:nrow(cl_refsum)) {
+    if (isTRUE(cl_refsum_long$month[i] == cl_refsum$month[j] && cl_refsum_long$species[i] == 'Crab')) {
+      cl_refsum_long$ref_kg_upper[i] = cl_refsum$c_kg_upper[j]
+      cl_refsum_long$ref_kg_lower[i] = cl_refsum$c_kg_lower[j]
+    }
+    if (isTRUE(cl_refsum_long$month[i] == cl_refsum$month[j] && cl_refsum_long$species[i] == 'Lobster')) {
+      cl_refsum_long$ref_kg_upper[i] = cl_refsum$l_kg_upper[j]
+      cl_refsum_long$ref_kg_lower[i] = cl_refsum$l_kg_lower[j]
+    }
+  }
+}
+
+clsum_joined <- left_join(clsum_long, cl_refsum_long, by = c("month","species"))
+
+ggplot(clsum_joined, aes(x = as.numeric(month))) +
+  geom_point(aes(y = obs_kg/1000, color = "Observed")) +
+  geom_line(aes(y = obs_kg/1000, color = "Observed")) +
+  geom_point(aes(y = ref_kg/1000, color = "Reference"), size = 0.5) +
+  geom_line(aes(y = ref_kg/1000, color = "Reference"), linetype = "dotted") +
+  geom_line(aes(y = ref_kg_upper/1000), color = 'red', linetype = "dotted") +
+  geom_line(aes(y = ref_kg_lower/1000), color = 'blue', linetype = "dotted") +
+  facet_wrap(~species, ncol = 1, scales = 'free') +
+  scale_color_manual(values = c("Observed" = "black", "Reference" = "grey40"), name = NULL) +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  labs(x = NULL, y = "Landings (t)") +
+  theme_classic()
+```
+
+\
+\
+
+```{r Plot monthly effort data, echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('Monthly hauls of crab and lobster pots in the Isle of Man between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+
+ggplot() +
+  geom_point(data = clsum, aes(x = as.numeric(month), y = pots_sum, color = 'Observed')) +
+  geom_line(data = clsum, aes(x = as.numeric(month), y = pots_sum, color = 'Observed')) +
+  geom_line(data = cl_refsum, aes(x = as.numeric(month), y = pots_sum, color = 'Reference'), linetype = 'dotted') +
+  geom_point(data = cl_refsum, aes(x = as.numeric(month), y = pots_sum, color = 'Reference'), size = 0.5) +
+  geom_line(data = cl_refsum, aes(x = as.numeric(month), y = pots_upper), color = 'red', linetype = 'dotted') +
+  geom_line(data = cl_refsum, aes(x = as.numeric(month), y = pots_lower), color = 'blue', linetype = 'dotted') +
+  scale_color_manual(values = c('Observed' = 'black', 'Reference' = 'grey40'), name = NULL) +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  ylab('Crab and Lobster Pot Hauls') +
+  xlab(NULL) +
+  theme_classic()
+
+```
+
+\
+\
+
+```{r Plot monthly LPUE data, echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('Median monthly landings per unit effort (LPUE) of crab and lobster in the Isle of Man between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Lower and upper error bars represent respective 25% and 75% LPUE quantiles for that month.', sep = '')}
+
+
+c_lpue_df = data.frame(`species` = 'Crab',
+                       `month` = clsum$month,
+                       `lpue_mean` = clsum$c_lpue_mean,
+                       `lpue_median` = clsum$c_lpue_median,
+                       `lpue_lower` = clsum$c_lpue_lower,
+                       `lpue_upper` = clsum$c_lpue_upper)
+c_lpue_df$lpue_ref_mean = NA
+c_lpue_df$lpue_ref_median = NA
+c_lpue_df$lpue_ref_lower = NA
+c_lpue_df$lpue_ref_upper = NA
+for (i in 1:nrow(c_lpue_df)) {
+  for (j in 1:nrow(cl_refsum)) {
+    if (c_lpue_df$month[i] == cl_refsum$month[j]) {
+      c_lpue_df$lpue_ref_mean[i] = cl_refsum$c_lpue_mean[j]
+      c_lpue_df$lpue_ref_median[i] = cl_refsum$c_lpue_median[j]
+      c_lpue_df$lpue_ref_lower[i] = cl_refsum$c_lpue_lower[j]
+      c_lpue_df$lpue_ref_upper[i] = cl_refsum$c_lpue_upper[j]
+    }
+  }
+}
+
+l_lpue_df = data.frame(`species` = 'Lobster',
+                       `month` = clsum$month,
+                       `lpue_mean` = clsum$l_lpue_mean,
+                       `lpue_median` = clsum$l_lpue_median,
+                       `lpue_lower` = clsum$l_lpue_lower,
+                       `lpue_upper` = clsum$l_lpue_upper)
+l_lpue_df$lpue_ref_mean = NA
+l_lpue_df$lpue_ref_median = NA
+l_lpue_df$lpue_ref_lower = NA
+l_lpue_df$lpue_ref_upper = NA
+for (i in 1:nrow(l_lpue_df)) {
+  for (j in 1:nrow(cl_refsum)) {
+    if (l_lpue_df$month[i] == cl_refsum$month[j]) {
+      l_lpue_df$lpue_ref_mean[i] = cl_refsum$l_lpue_mean[j]
+      l_lpue_df$lpue_ref_median[i] = cl_refsum$l_lpue_median[j]
+      l_lpue_df$lpue_ref_lower[i] = cl_refsum$l_lpue_lower[j]
+      l_lpue_df$lpue_ref_upper[i] = cl_refsum$l_lpue_upper[j]
+    }
+  }
+}
+
+lpue_df = rbind(c_lpue_df, l_lpue_df)
+lpue_df$month = factor(lpue_df$month, levels = month.abb)
+
+ggplot(lpue_df, aes(x = as.numeric(month))) +
+  geom_point(aes(y = lpue_median, color = "Observed")) +
+  geom_line(aes(y = lpue_median, color = "Observed")) +
+  geom_errorbar(aes(y = lpue_median, ymin = lpue_lower, ymax = lpue_upper), width = 0.2) +
+  geom_point(aes(y = lpue_ref_median, color = "Reference"), size = 0.5) +
+  geom_line(aes(y = lpue_ref_median, color = "Reference"), linetype = "dotted") +
+  geom_line(aes(y = lpue_ref_upper), color = 'red', linetype = "dotted") +
+  geom_line(aes(y = lpue_ref_lower), color = 'blue', linetype = "dotted") +
+  facet_wrap(~species, ncol = 1, scales = 'free') +
+  scale_color_manual(values = c("Observed" = "black", "Reference" = "grey40"), name = "") +
+  scale_x_continuous(breaks = 1:12, labels = month.abb) +
+  labs(x = NULL, y = "LPUE") +
+  theme_classic()
+
+```
+
+\
+\
+
+```{r Make plot of effort distribution, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), message = FALSE, warning = FALSE, echo = FALSE, error = FALSE, fig.cap = paste('Crab and lobster pots hauled per km² between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5_filtered = filter(Join5, Departure.Date < end_date & Departure.Date > start_date)
+cl = filter(Join5_filtered, LE_KG_LBE > 0 | LE_KG_CRE > 0)
+df_sf <- st_as_sf(cl, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+df_sf_27700 <- st_transform(df_sf, crs = 27700)
+cl$eastings <- st_coordinates(df_sf_27700)[,1] 
+cl$northings <- st_coordinates(df_sf_27700)[,2]
+
+cl$eastings_1000m <- round(cl$eastings, -3)
+cl$northings_1000m <- round(cl$northings, -3)
+
+grid_pots = cl %>%
+  group_by(eastings_1000m, northings_1000m, uniqueID) %>%
+  summarise(pots = max(pmax(Pot_No_LBE, Pot_No_CRE), na.rm = TRUE),
+            .groups = 'drop')
+
+index = grid_pots %>%
+  group_by(uniqueID) %>%
+  summarise(n = n())
+
+grid_pots = left_join(grid_pots, index, by = 'uniqueID')
+grid_pots$pots_divided = grid_pots$pots / grid_pots$n
+
+grid_pots_new = grid_pots %>%
+  group_by(eastings_1000m, northings_1000m) %>%
+  summarise(pot_sum = round(sum(pots_divided), 0))
+
+r <- rasterFromXYZ(grid_pots_new[, c("eastings_1000m", "northings_1000m", "pot_sum")])
+crs(r) <- CRS("+init=epsg:27700")
+r_wgs84 <- projectRaster(r, crs = CRS("+init=epsg:4326"))
+lpue_points <- as.data.frame(rasterToPoints(r_wgs84, spatial = TRUE))
+
+ggplot() +
+  geom_tile(data = lpue_points, aes(x = x, y = y, fill = pot_sum)) +
+  scale_fill_viridis_c(name = 'Pots Hauled') +
+  geom_sf(data = IOM3NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IOM12NM, col = 'black', fill = 'transparent') +
+  geom_sf(data = IoM, fill = 'grey') +
+  xlab(NULL) +
+  ylab(NULL) +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+\
+\
+
+```{r Getting point-polygon overlap for 1nm zones, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.cap = paste('iVMS records within the 1 nm management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')}
+Join5$Departure.Date = as.POSIXct(Join5$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+Join5$month = months.POSIXt(Join5$Departure.Date, abbreviate = TRUE)
+cl = filter(Join5, LE_KG_LBE > 0 | LE_KG_CRE > 0 & Departure.Date > start_date & Departure.Date < end_date)
+
+cl_sf <- st_as_sf(cl, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+cl_sf <- st_transform(cl_sf, st_crs(zones))
+cl_joined <- st_join(cl_sf, zones, join = st_intersects)
+
+cl_joined <- cl_joined %>%
+  mutate(SI_LONG = st_coordinates(.)[,1],
+         SI_LATI = st_coordinates(.)[,2])
+
+cl_withzones <- as.data.frame(st_drop_geometry(cl_joined))
+
+cl_withzones <- cl_withzones %>%
+  mutate(id = dplyr::recode(id,
+                     "1" = "SGMZ-1 SHELLAG",
+                     "2" = "SGMZ-2 RAMSEY",
+                     "3" = "SGMZ-3 CORNAA",
+                     "4" = "SGMZ-4 LAXEY",
+                     "5" = "SGMZ-5 DOUGLAS",
+                     "6" = "SGMZ-6 SODERICK",
+                     "7" = "SGMZ-7 DERBY HAVEN",
+                     "8" = "SGMZ-8 CASTLETOWN",
+                     "9" = "SGMZ-9 CARRICK",
+                     "10" = "SGMZ-10 CALF",
+                     "11" = "SGMZ-11 ERIN",
+                     "12" = "SGMZ-12 FLESHWICK",
+                     "13" = "SGMZ-13 NIARBYL",
+                     "14" = "SGMZ-14 CONTRARY",
+                     "15" = "SGMZ-15 PEEL",
+                     "16" = "SGMZ-16 WYLLIN",
+                     "17" = "SGMZ-17 ORRISDALE",
+                     "18" = "SGMZ-18 JURBY",
+                     "19" = "SGMZ-19 AYRE",
+                     "0" = "Unnamed")) %>%
+  mutate(id = factor(id, levels = c('SGMZ-1 SHELLAG', 'SGMZ-2 RAMSEY', 'SGMZ-3 CORNAA', 
+                                    'SGMZ-4 LAXEY', 'SGMZ-5 DOUGLAS', 'SGMZ-6 SODERICK', 
+                                    'SGMZ-7 DERBY HAVEN', 'SGMZ-8 CASTLETOWN', 'SGMZ-9 CARRICK',
+                                    'SGMZ-10 CALF', 'SGMZ-11 ERIN', 'SGMZ-12 FLESHWICK',
+                                    'SGMZ-13 NIARBYL', 'SGMZ-14 CONTRARY', 'SGMZ-15 PEEL',
+                                    'SGMZ-16 WYLLIN', 'SGMZ-17 ORRISDALE', 'SGMZ-18 JURBY',
+                                    'SGMZ-19 AYRE', 'Unnamed')))
+
+cl_withzones_filtered = filter(cl_withzones, Departure.Date < end_date & Departure.Date > start_date)
+
+ggplot() +
+  geom_point(data = filter(cl_withzones_filtered, is.na(id) == 'FALSE'), aes(x = SI_LONG, y = SI_LATI, col = as.factor(id)), size = 0.01, pch = 19) +
+  geom_sf(data = zones, fill = 'transparent', col = 'red') +
+  geom_sf(data = IoM, fill = 'grey') +
+  labs(col = '') +
+  geom_text(aes(label = '', x = -4.15, y = 54.38), size = 2, hjust = 0) +
+  geom_text(aes(label = '', x = -4.98, y = 54.38), size = 2, hjust = 1) +
+  geom_text(aes(label = '', x = -4.73, y = 53.98), size = 2, hjust = 0.5) +
+  geom_text(aes(label = 'SGMZ-1 SHELLAG', x = -4.32, y = 54.38), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-2 RAMSEY', x = -4.32, y = 54.33), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-3 CORNAA', x = -4.29, y = 54.27), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-4 LAXEY', x = -4.35, y = 54.21), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-5 DOUGLAS', x = -4.4, y = 54.15), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-6 SODERICK', x = -4.47, y = 54.11), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-7 DERBY HAVEN', x = -4.57, y = 54.06), size = 2, hjust = 0) +
+  geom_text(aes(label = 'SGMZ-8 CASTLETOWN', x = -4.66, y = 54.0125), size = 2, hjust = 0) +
+  annotate("segment", x = -4.65, y = 54.02, xend = -4.65, yend = 54.035, arrow = arrow(type = "open", length = unit(0.2, "cm")), size = 0.2) +
+  geom_text(aes(label = 'SGMZ-9 CARRICK', x = -4.73, y = 53.99), size = 2, hjust = 0) +
+  annotate("segment", x = -4.72, y = 54, xend = -4.72, yend = 54.045, arrow = arrow(type = "open", length = unit(0.2, "cm")), size = 0.2) +
+  geom_text(aes(label = 'SGMZ-10 CALF', x = -4.83, y = 54.01), size = 2, hjust = 0.5) +
+  geom_text(aes(label = 'SGMZ-11 ERIN', x = -4.84, y = 54.08), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-12 FLESHWICK', x = -4.79, y = 54.126), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-13 NIARBYL', x = -4.785, y = 54.16), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-14 CONTRARY', x = -4.758, y = 54.205), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-15 PEEL', x = -4.725, y = 54.245), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-16 WYLLIN', x = -4.652, y = 54.28), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-17 ORRISDALE', x = -4.615, y = 54.33), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-18 JURBY', x = -4.57, y = 54.38), size = 2, hjust = 1) +
+  geom_text(aes(label = 'SGMZ-19 AYRE', x = -4.44, y = 54.43), size = 2, hjust = 1) +
+  xlab('') +
+  ylab('') +
+  theme_bw() +
+  theme(legend.position = 'FALSE')
+```
+
+\
+\
+
+```{r Get basic metrics of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+zones_grouped = cl_withzones_filtered %>%
+  group_by(VE_REF, uniqueID, month, id) %>%
+  summarise(l_kg = first(LE_KG_LBE),
+            c_kg = first(LE_KG_CRE),
+            pots = max(pmax(Pot_No_LBE, Pot_No_CRE), na.rm = TRUE))
+zones_grouped = na.omit(zones_grouped)
+
+number_of_zones = zones_grouped %>%
+  group_by(uniqueID) %>%
+  summarise(n = n())
+
+zones_grouped = left_join(zones_grouped, number_of_zones, by = 'uniqueID')
+
+zones_grouped$l_kg_new = zones_grouped$l_kg / zones_grouped$n
+zones_grouped$c_kg_new = zones_grouped$c_kg / zones_grouped$n
+zones_grouped$pots_new = zones_grouped$pots / zones_grouped$n
+
+zones_grouped$target = 'None'
+zones_grouped$target = if_else((zones_grouped$c_kg / (zones_grouped$c_kg + zones_grouped$l_kg)) >= 0.8, 'Crab', zones_grouped$target)
+zones_grouped$target = if_else((zones_grouped$l_kg / (zones_grouped$c_kg + zones_grouped$l_kg)) >= 0.8, 'Lobster', zones_grouped$target)
+
+zones_grouped$l_lpue = zones_grouped$l_kg_new / zones_grouped$pots_new
+zones_grouped$c_lpue = zones_grouped$c_kg_new / zones_grouped$pots_new
+zones_grouped = filter(zones_grouped, is.na(c_lpue) == 'FALSE' & is.infinite(c_lpue) == 'FALSE' &
+                         is.na(l_lpue) == 'FALSE' & is.infinite(l_lpue) == 'FALSE')
+
+# Overall metrics for quarter
+zone_metrics = filter(zones_grouped, is.na(id) == 'FALSE') %>%
+  group_by(id) %>%
+  summarise('Unique vessels' = length(unique(VE_REF)),
+            'Crab landings (t)' = round(sum(c_kg_new)/1000, 2),
+            'Lobster landings (t)' = round(sum(l_kg_new)/1000, 2),
+            'Pots hauled' = round(sum(pots_new), 0))
+c_lpue = filter(zones_grouped, is.na(id) == 'FALSE' & target == 'Crab') %>%
+  group_by(id) %>%
+  summarise('Mean crab LPUE' = round(mean(c_lpue), 2))
+l_lpue = filter(zones_grouped, is.na(id) == 'FALSE' & target == 'Lobster') %>%
+  group_by(id) %>%
+  summarise('Mean lobster LPUE' = round(mean(l_lpue), 2))
+
+zone_metrics = left_join(zone_metrics, c_lpue, by = c('id'))
+zone_metrics = left_join(zone_metrics, l_lpue, by = c('id'))
+
+zone_metrics = filter(zone_metrics, id != 'Unnamed')
+
+colnames(zone_metrics)[1] = 'Management zone'
+
+
+```
+
+\
+\
+\
+\
+\
+
+```{r Make table of summary zone metrics, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+knitr::kable(zone_metrics, row.names = FALSE, align = "lccccc", caption = paste("Landings and LPUE of crab and lobster pot fishing in 1 nm management zones between ", format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '.', sep = '')) %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% # make left column wider to increase table size
+    column_spec(1, width = "4cm") %>%
+  column_spec(2:7, width = '1.7cm')
+```
+
+\
+\
+
+```{r Calculate monthly LPUE and catch metrics of each zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+zones_grouped2 = filter(cl_withzones, Departure.Date <= end_date, Departure.Date >= start_date) %>%
+  group_by(uniqueID, month, id) %>%
+  summarise(l_kg = first(LE_KG_LBE),
+            c_kg = first(LE_KG_CRE),
+            pots = pmax(max(Pot_No_LBE, Pot_No_CRE), na.rm = TRUE))
+zones_grouped2 = filter(zones_grouped2, is.na(id) == 'FALSE')
+
+zones_grouped2$target = 'None'
+zones_grouped2$target = if_else(zones_grouped2$c_kg / (zones_grouped2$c_kg + zones_grouped2$l_kg) >= 0.8, 'Crab', zones_grouped2$target)
+zones_grouped2$target = if_else(zones_grouped2$l_kg / (zones_grouped2$c_kg + zones_grouped2$l_kg) >= 0.8, 'Lobster', zones_grouped2$target)
+
+number_of_zones = zones_grouped2 %>%
+  group_by(uniqueID) %>%
+  summarise(n = n())
+
+zones_grouped2$c_kg_new = NA
+zones_grouped2$l_kg_new = NA
+zones_grouped2$pots_new = NA
+for (i in 1:nrow(zones_grouped2)) { # if fishing occurred over multiple zones, distribute catch and pots evenly
+  for (j in 1:nrow(number_of_zones)) {
+    if (isTRUE(zones_grouped2$uniqueID[i] == number_of_zones$uniqueID[j])) {
+      zones_grouped2$c_kg_new[i] = zones_grouped2$c_kg[i] / number_of_zones$n[j]
+      zones_grouped2$l_kg_new[i] = zones_grouped2$l_kg[i] / number_of_zones$n[j]
+      zones_grouped2$pots_new[i] = zones_grouped2$pots[i] / number_of_zones$n[j]
+    }
+  }
+}
+
+zones_grouped2$c_lpue = zones_grouped2$c_kg_new / zones_grouped2$pots_new
+zones_grouped2$l_lpue = zones_grouped2$l_kg_new / zones_grouped2$pots_new
+
+# Overall metrics for quarter
+zone_metrics_monthly = zones_grouped2 %>%
+  group_by(id, month) %>%
+  summarise('Crab landings (t)' = sum(c_kg_new)/1000,
+            'Lobster landings (t)' = sum(l_kg_new)/1000,
+            'Pots hauled' = sum(pots_new))
+c_lpue = filter(zones_grouped, target == 'Crab') %>%
+  group_by(id, month) %>%
+  summarise('Mean crab LPUE' = mean(c_lpue),
+            'Lower crab LPUE' = quantile(c_lpue, 0.25),
+            'Upper crab LPUE' = quantile(c_lpue, 0.75))
+l_lpue = filter(zones_grouped, target == 'Lobster') %>%
+  group_by(id, month) %>%
+  summarise('Mean lobster LPUE' = mean(l_lpue),
+            'Lower lobster LPUE' = quantile(l_lpue, 0.25),
+            'Upper lobster LPUE' = quantile(l_lpue, 0.75))
+
+zone_metrics_monthly = left_join(zone_metrics_monthly, c_lpue, by = c('id', 'month'))
+zone_metrics_monthly = left_join(zone_metrics_monthly, l_lpue, by = c('id', 'month'))
+
+zone_metrics_monthly = filter(zone_metrics_monthly, id != 'Unnamed')
+
+colnames(zone_metrics_monthly)[1] = 'Management Zone'
+colnames(zone_metrics_monthly)[2] = 'Month'
+
+zone_metrics_monthly$Month = factor(zone_metrics_monthly$Month, levels = month.abb)
+```
+
+```{r Make table of unique vessel reference numbers for each zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE}
+zone_vessnames = zones_grouped %>%
+  group_by(id) %>%
+  summarise('Vessels' = paste(unique(VE_REF), collapse = ", "))
+
+zone_vessnames = filter(zone_vessnames, id != 'Unnamed')
+colnames(zone_vessnames)[1] = 'Management zone'
+
+knitr::kable(zone_vessnames, row.names = FALSE, align = "ll", caption = 'Unique vessel reference numbers for each 1 nm management zone.') %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% # make left column wider to increase table size
+    column_spec(1, width = "4.5cm") %>%
+  column_spec(2, width = "11.6cm")
+```
+
+\
+\
+\
+\
+\
+
+```{r Plot monthly catch of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.height = 8, fig.cap = paste('Total monthly landings (t) of crab and lobster within the IoM 1 nm management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Note the different scales on the y axis of each zone.', sep = '')}
+ggplot() +
+  geom_point(data = zone_metrics_monthly, aes(x= as.numeric(Month), y = `Crab landings (t)`, color = 'Crab'), size = 0.5) +
+  geom_line(data = zone_metrics_monthly, aes(x= as.numeric(Month), y = `Crab landings (t)`, color = 'Crab')) +
+  geom_point(data = zone_metrics_monthly, aes(x= as.numeric(Month), y = `Lobster landings (t)`, color = 'Lobster'), size = 0.5) +
+  geom_line(data = zone_metrics_monthly, aes(x= as.numeric(Month), y = `Lobster landings (t)`, color = 'Lobster')) +
+  scale_x_continuous(breaks = 1:12, limits = c(1, 12)) +
+  xlab('Month') +
+  geom_line() +
+  facet_wrap(~ `Management Zone`, ncol = 3, scales = 'free') +
+  scale_color_manual(values = c('Crab' = 'black', 'Lobster' = 'red'), name = NULL) +
+  ylab('Total landings (t)') +
+  theme_classic() +
+  theme(legend.position = 'top')
+```
+
+\
+\
+\
+
+```{r Plot monthly crab LPUE of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.height = 8, fig.cap = paste('Mean monthly landings per unit effort (LPUE) of crab-targeted pot fishing (>= 80% crab catch) within the IoM 1 nm management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Lower and upper error bars represent respective 25% and 75% LPUE quantiles for that month.', sep = '')}
+
+ggplot(data = filter(zone_metrics_monthly, is.infinite(`Mean crab LPUE`) == 'FALSE' & is.na(`Mean crab LPUE`) == 'FALSE'), aes(x = as.numeric(Month), y = `Mean crab LPUE`)) +
+  geom_point(size = 0.5) +
+  geom_errorbar(aes(ymin = `Lower crab LPUE`, ymax = `Upper crab LPUE`), width = 0.25) +
+  scale_x_continuous(breaks = 1:12, limits = c(1,12)) + 
+  xlab('Month') +
+  geom_line() +
+  facet_wrap(~ `Management Zone`, ncol = 3) +
+  theme_classic() +
+  theme(legend.position = 'FALSE')
+```
+
+\
+\
+\
+
+```{r Plot monthly lobster LPUE of each management zone, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), echo = FALSE, message = FALSE, warning = FALSE, fig.height = 8, fig.cap = paste('Mean monthly landings per unit effort (LPUE) of lobster-targeted pot fishing (>= 80% lobster catch) within the IoM 1 nm management zones between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Lower and upper error bars represent respective 25% and 75% LPUE quantiles for that month.', sep = '')}
+
+ggplot(data = filter(zone_metrics_monthly, is.infinite(`Mean lobster LPUE`) == 'FALSE' & is.na(`Mean lobster LPUE`) == 'FALSE'), aes(x = as.numeric(Month), y = `Mean lobster LPUE`)) +
+  geom_point(size = 0.5) +
+  geom_errorbar(aes(ymin = `Lower lobster LPUE`, ymax = `Upper lobster LPUE`), width = 0.25) +
+  scale_x_continuous(breaks = 1:12, limits = c(1,12)) + 
+  xlab('Month') +
+  geom_line() +
+  facet_wrap(~ `Management Zone`, ncol = 3) +
+  theme_classic() +
+  theme(legend.position = 'FALSE')
+```
+
+\
+\
+\
+
+```{r GAM of crab LPUE, message = FALSE, warning = FALSE, echo = FALSE, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), fig.cap = paste('Landings per unit effort (LPUE) of crab between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Red points represent trips that only caught crab and only used crab pots, excluding fish species. Black points represent trips that also caught lobster or whelk and/or used whelk pots. Red and black lines represent the generalised additive model (GAM) of crab and mixed species fishing trips, respectively.', sep = ' ')}
+lpue_all = filter(logbook_filtered, Departure.Date <= end_date) %>%
+  group_by(uniqueID, Departure.Date) %>%
+  summarise(kg = first(LE_KG_CRE),
+            pots = first(Pot_No_CRE))
+
+lpue_all$lpue = lpue_all$kg / lpue_all$pots
+lpue_all = filter(lpue_all, is.infinite(lpue) == 'FALSE' & is.na(lpue) == 'FALSE')
+
+lpue_justcrab = filter(logbook_filtered, Departure.Date <= end_date & LE_KG_LBE == 0 & LE_KG_WHE == 0 & Pot_No_WHE == 0) %>%
+  group_by(uniqueID, Departure.Date) %>%
+  summarise(kg = first(LE_KG_CRE),
+            pots = first(Pot_No_CRE))
+
+lpue_justcrab$lpue = lpue_justcrab$kg / lpue_justcrab$pots
+lpue_justcrab = filter(lpue_justcrab, is.infinite(lpue) == 'FALSE' & is.na(lpue) == 'FALSE')
+
+lpue_all$year = as.factor(substr(lpue_all$Departure.Date, 1, 4))
+lpue_justcrab$year = as.factor(substr(lpue_justcrab$Departure.Date, 1, 4))
+
+
+ggplot() +
+  geom_point(data = lpue_all, aes(x = Departure.Date, y = lpue, col = 'Mixed species'), alpha = 0.5, cex = 0.5) +
+  geom_point(data = lpue_justcrab, aes(x = Departure.Date, y = lpue, col = 'Crab only'), alpha = 0.5, cex = 0.5) +
+  geom_smooth(data = lpue_all, aes(x = Departure.Date, y = lpue, col = 'Mixed species'), se = FALSE) +
+  geom_smooth(data = lpue_justcrab, aes(x = Departure.Date, y = lpue, col = 'Crab only'), se = FALSE) +
+  scale_color_manual(name = NULL, values = c('Mixed species' = 'black', 'Crab only' = 'red')) +
+  xlab(NULL) +
+  ylab('LPUE') +
+  facet_wrap(.~ year, scales = 'free_x', ncol = 1) +
+  scale_x_datetime(date_breaks = '1 month', date_labels = "%b") +
+  theme_classic() +
+  theme()
+
+```
+
+\
+\
+\
+
+```{r GAM of lobster LPUE, message = FALSE, warning = FALSE, echo = FALSE, eval = if_else(DEFA == 'TRUE', TRUE, FALSE), fig.cap = paste('Landings per unit effort (LPUE) of lobster between ', format_with_suffix(start_date), ' and ', format_with_suffix(end_date), '. Red points represent trips that only caught lobster and only used lobster pots, excluding fish species. Black points represent trips that also caught crab or whelk and/or used whelk pots. Red and black lines represent the generalised additive model (GAM) of lobster and mixed species fishing trips, respectively.', sep = ' ')}
+lpue_all = filter(logbook_filtered, Departure.Date <= end_date) %>%
+  group_by(uniqueID, Departure.Date) %>%
+  summarise(kg = first(LE_KG_LBE),
+            pots = first(Pot_No_LBE))
+
+lpue_all$lpue = lpue_all$kg / lpue_all$pots
+lpue_all = filter(lpue_all, is.infinite(lpue) == 'FALSE' & is.na(lpue) == 'FALSE')
+
+lpue_justlob = filter(logbook_filtered, Departure.Date <= end_date & LE_KG_CRE == 0 & LE_KG_WHE == 0 & Pot_No_WHE == 0) %>%
+  group_by(uniqueID, Departure.Date) %>%
+  summarise(kg = first(LE_KG_LBE),
+            pots = first(Pot_No_LBE))
+
+lpue_justlob$lpue = lpue_justlob$kg / lpue_justlob$pots
+lpue_justlob = filter(lpue_justlob, is.infinite(lpue) == 'FALSE' & is.na(lpue) == 'FALSE')
+
+lpue_all$year = as.factor(substr(lpue_all$Departure.Date, 1, 4))
+lpue_justlob$year = as.factor(substr(lpue_justlob$Departure.Date, 1, 4))
+
+ggplot() +
+  geom_point(data = lpue_all, aes(x = Departure.Date, y = lpue, col = 'Mixed species'), alpha = 0.5, cex = 0.5) +
+  geom_point(data = lpue_justlob, aes(x = Departure.Date, y = lpue, col = 'Lobster only'), alpha = 0.5, cex = 0.5) +
+  geom_smooth(data = lpue_all, aes(x = Departure.Date, y = lpue, col = 'Mixed species'), se = FALSE) +
+  geom_smooth(data = lpue_justlob, aes(x = Departure.Date, y = lpue, col = 'Lobster only'), se = FALSE) +
+  scale_color_manual(name = NULL, values = c('Mixed species' = 'black', 'Lobster only' = 'red')) +
+  xlab(NULL) +
+  ylab('LPUE') +
+  scale_x_datetime(date_breaks = '1 month', date_labels = "%b") +
+  facet_wrap(.~ year, scales = 'free_x', ncol = 1) +
+  theme_classic() +
+  theme()
+```
