@@ -133,7 +133,7 @@ These code files should be used to process iVMS and logbook data from fisheries 
 
 
 ## Step 3 (optional): Pot Limit Data Structure and Formatting
-Pot limit isn't required for the cleaning code to run. However, if desired, it can toggled before code execution to attach respective pot limits to vessel records in the output files. 
+Pot limit data isn't required for the cleaning code to run. However, if desired, it can be toggled before code execution to attach respective pot limits to vessel records in the output files. 
 
 1. Set *include_potlimit* to **TRUE** in *'iVMS and Logbook Cleaner.R'*.
 2. Ensure that the file has a column named *RSS.No* for merging. Add any additional columns with pot limit info or custom data.  
