@@ -20,7 +20,12 @@ Users can also configure the report generator to produce public-facing reports t
 
 
 ## Step 1: Data Structure and Formatting
-1. Ensure that you have followed the intructions for the _iVMS and Logbook Cleaner_, and that all output files have been created:
+1. Make sure you have _tinytex_ installed. If not installed already, use the following code in R to install it to your device.
+
+tinytex::install_tinytex()
+
+
+2. Ensure that you have followed the intructions for the _iVMS and Logbook Cleaner_, and that all output files have been created:
 - u10log_cleaned.csv
 - O10log_cleaned.csv
 - combinedlog_O10_U10m.csv
@@ -29,7 +34,7 @@ Users can also configure the report generator to produce public-facing reports t
 - Join10s_4.csv
 - Join10m_5.csv
 
-2. Ensure that all 'Join' datasets have the following columns (these should be made by default with _iVMS and Logbook Cleaner_):
+3. Ensure that all 'Join' datasets have the following columns (these should be made by default with _iVMS and Logbook Cleaner_):
 - uniqueID
 - Vessel.Name
 - Departure.Date
@@ -45,3 +50,14 @@ Users can also configure the report generator to produce public-facing reports t
 - SI_DATE
 - SI_LONG
 - SI_LATI
+
+4. In addition to the iVMS and logbook data, this code requires an additional **reference** data file that contains previous fishing records to compare against (currently set to 2010-2015). This should contain the following columns:
+- Date
+- wp_hauled _(whelk pots hauled)_
+- lp_hauled _(crab/lobster pots hauled)_
+- bu_retained _(whelk retained in kg)_
+- hg_retained _(lobster retained in kg)_
+- cp_retained _(crab retained in kg)_
+<br />
+
+## Step 2: Configuring the Report Generator
