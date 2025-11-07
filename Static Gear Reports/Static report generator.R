@@ -46,7 +46,7 @@ params = list(quarter = 'Custom', # Input quarter ('1', '2', '3', '4', 'Annual',
 
 reports_dir = "~/Documents/IoM 2025/Static Gear Reports/" # Directory of this code and report code files
 
-joined_data_dir = "~/Documents/IoM 2025/Data/Cleaned/Joined data/" # Directory for Join csv files (e.g., Join5.csv)
+joined_data_dir = "~/Documents/IoM 2025/Data/Cleaned/" # Directory for Join csv files (e.g., Join5.csv)
 cleaned_data_dir = "~/Documents/IoM 2025/Data/Cleaned/" # Directory for cleaned VMS, logbook, and XCheck/comments data
 reference_data_dir = "~/Documents/IoM 2025/Data/Cleaned/" # Directory for reference data csv files with following format:
 shapefiles_dir = "~/Documents/IoM 2025/Data/Raw/Shapefiles/" # Directory for shapefiles
@@ -61,8 +61,8 @@ shapefiles_dir = "~/Documents/IoM 2025/Data/Raw/Shapefiles/" # Directory for sha
     Join10s.4 = read_csv(paste0(joined_data_dir, "Join10s_4.csv"))
     Join10m.5 = read_csv(paste0(joined_data_dir, "Join10m_5.csv"))
     
-    logbook = read.csv(paste0(cleaned_data_dir, "LB_ALL/combinedlog_O10_U10m.csv"))
-    vms = read.csv(paste0(cleaned_data_dir, "iVMS/ivms_cleaned.csv"))
+    logbook = read.csv(paste0(cleaned_data_dir, "combinedlog_O10_U10m.csv"))
+    vms = read.csv(paste0(cleaned_data_dir, "ivms_cleaned.csv"))
     check = read.csv(paste0(cleaned_data_dir, "XCheckSummary.csv")) # All comments for mismatched vms/logbook data
     
     lob_ref = read_csv(paste0(reference_data_dir, "Lobster_records_IoM.csv")) 
