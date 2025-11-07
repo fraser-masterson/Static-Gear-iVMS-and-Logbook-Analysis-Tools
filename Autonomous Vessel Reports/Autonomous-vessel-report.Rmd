@@ -1,0 +1,1027 @@
+---
+title: "IoM Annual Vessel Report"
+subtitle: "`r paste(format_with_suffix(start_date), format_with_suffix(end_date), sep = ' - ')`"
+output:
+  pdf_document: default
+  fig_caption: yes
+  params:
+    vessel_name: "Default Vessel"
+---
+
+```{css Centre title and subtitle, echo=FALSE}
+h1.title, h2.subtitle, h3.subtitle {
+  text-align: center;
+}
+```
+
+```{r Get vessel name from Report generator.Rmd, echo = FALSE}
+vessel = params$vessel_name
+start_date = params$start_date
+end_date = params$end_date
+```
+
+\begin{center}
+Vessel: `r toupper(vessel)`
+\end{center}
+
+```{r Calculate total species catch, echo = FALSE, message = FALSE}
+
+# The reason I do so many 'if' statements in this report is to make it as universal as possible and to skip over code that would otherwise cause errors
+
+logbook$Departure.Date = as.POSIXct(logbook$Departure.Date, format = '%d/%m/%Y', tz = 'UTC')
+logbook = dplyr::filter(logbook, Departure.Date > start_date & Departure.Date < end_date)
+
+
+# Check each LE_KG column to see what species caught, if > 0 kg landed in df, get basic metrics and add to species_list
+df = filter(logbook, Vessel.Name == vessel) # use Join5 as it has all species
+    species_list = data.frame("Species" = NA,
+                              "kg" = NA,
+                              "Days_fished" = NA)
+      if (isTRUE(sum(df$LE_KG_CRE) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Crab",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_CRE)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_CRE)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0))))) 
+      }
+      if (isTRUE(sum(df$LE_KG_DGH) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Dogfishes",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_DGH)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_DGH)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_HER) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Atlantic herring",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_HER)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_HER)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_LBE) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Lobster",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_LBE)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_LBE)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_MAC) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Atlantic mackerel",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_MAC)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_MAC)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_POL) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Pollack",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_POL)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_POL)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_SQC) > 0)) { 
+        species_list = rbind(species_list, data.frame("Species" = "Squid",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SQC)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SQC)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_SQR) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "European squid",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SQR)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SQR)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_WHE) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Whelk",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_WHE)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_WHE)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_HKE) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "European hake",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_HKE)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_HKE)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_MON) > 0)) { 
+        species_list = rbind(species_list, data.frame("Species" = "Monkfish",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_MON)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_MON)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0))))) 
+      }
+      if (isTRUE(sum(df$LE_KG_NEP) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Norway lobster",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_NEP)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_NEP)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_POK) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Saithe (coalfish)",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_POK)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_POK)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_TUR) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Turbot",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_TUR)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_TUR)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_LOQ) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Squat lobster",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_LOQ)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_LOQ)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_RJC) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Thornback ray",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_RJC)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_RJC)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_SAN) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Sandeel",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SAN)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SAN)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_GUX) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Gurnard",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_GUX)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_GUX)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_LIN) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Ling",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_LIN)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_LIN)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_RJA) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "White skate",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_RJA)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_RJA)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_SCE) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "King scallop",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SCE)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_SCE)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_USB) > 0)) {
+        species_list = rbind(species_list, data.frame("Species" = "Ballan wrasse",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_USB)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_USB)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+      if (isTRUE(sum(df$LE_KG_WRA) > 0)) { 
+        species_list = rbind(species_list, data.frame("Species" = "Cuckoo wrasse",
+                                                      "kg" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_WRA)) %>%
+                                                        summarise(Sum_Unique_Values = sum(Unique_Value))),
+                                                      "Days_fished" = as.numeric(df %>%
+                                                        group_by(uniqueID) %>%
+                                                        summarise(Unique_Value = first(LE_KG_WRA)) %>%
+                                                        summarise(Days = sum(Unique_Value > 0)))))
+      }
+    
+    species_list = na.omit(species_list)
+    species_list = species_list[order(species_list$kg, decreasing = TRUE), ]
+
+    
+```
+
+```{r Add pot metrics to species list, echo = FALSE, message = FALSE}
+
+df = filter(logbook, Vessel.Name == vessel)
+
+# Species list parameter: if crab/lob/whelk present, add more metrics to table, these are:
+# - Pots_hauled
+# - Pots/day
+# - LPUE
+# - also updated kg as it seems to cause problems if unchanged
+
+if (nrow(filter(species_list, Species == "Crab" | Species == "Lobster" | Species == "Whelk")) > 0) {
+  
+  species_list$Pots_hauled = "-"
+  species_list$`Pots/day` = "-"
+  species_list$LPUE = "-"
+  
+  for (i in 1:nrow(species_list)) {
+    if (isTRUE(species_list$Species[i] == 'Crab')) { # If crab is in the records
+      crab_df = df %>%
+        group_by(uniqueID) %>%
+        summarise(cre_kg = first(LE_KG_CRE),
+                  cre_pots = first(Pot_No_CRE))
+      species_list$`Pots_hauled`[i] = sum(crab_df$cre_pots)
+      species_list$kg[i] = sum(crab_df$cre_kg)
+      species_list$`Pots/day`[i] = 
+        round(as.numeric(species_list$`Pots_hauled`[i]) / as.numeric(species_list$`Days_fished`[i]), digits = 1)
+      species_list$LPUE[i] = 
+        round(as.numeric(species_list$kg[i]) / as.numeric(species_list$`Pots_hauled`[i]), digits = 2)
+    }
+    if (isTRUE(species_list$Species[i] == 'Lobster')) { # If lobster is in the records
+      lob_df = df %>%
+        group_by(uniqueID) %>%
+        summarise(lbe_kg = first(LE_KG_LBE),
+                  lbe_pots = first(Pot_No_LBE))
+      species_list$`Pots_hauled`[i] = sum(lob_df$lbe_pots)
+      species_list$kg[i] = sum(lob_df$lbe_kg)
+      species_list$`Pots/day`[i] = 
+        round(as.numeric(species_list$`Pots_hauled`[i]) / as.numeric(species_list$`Days_fished`[i]), digits = 1)
+      species_list$LPUE[i] = 
+        round(as.numeric(species_list$kg[i]) / as.numeric(species_list$`Pots_hauled`[i]), digits = 2)
+    }
+    if (isTRUE(species_list$Species[i] == 'Whelk')) { # If whelk is in the records
+      whelk_df = df %>%
+        group_by(uniqueID) %>%
+        summarise(whe_kg = first(LE_KG_WHE),
+                  whe_pots = first(Pot_No_WHE))
+      species_list$`Pots_hauled`[i] = sum(whelk_df$whe_pots)
+      species_list$kg[i] = sum(whelk_df$whe_kg)
+      species_list$`Pots/day`[i] = 
+        round(as.numeric(species_list$`Pots_hauled`[i]) / as.numeric(species_list$`Days_fished`[i]), digits = 1)
+      species_list$LPUE[i] = 
+        round(as.numeric(species_list$kg[i]) / as.numeric(species_list$`Pots_hauled`[i]), digits = 2)
+    }
+  }
+}
+  
+
+colnames(species_list) = gsub("_", " ", colnames(species_list))
+
+
+# Get the area of fishing undertaken by the vessel over the year
+
+df2 = filter(Join5, Departure.Date > start_date & Departure.Date < end_date & Vessel.Name == vessel)
+coords <- cbind(df2$SI_LONG, df2$SI_LATI)
+sfpoints <- st_as_sf(df2, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+sfpoints_proj <- st_transform(sfpoints, crs = 27700) 
+sfpoints_buffered <- st_buffer(sfpoints_proj, dist = 250) # Change 250 to whatever resolution the iVMS records are
+
+test2 = st_union(sfpoints_buffered$geometry) # Dissolve the polygons into one
+
+area = paste(round(as.numeric(st_area(test2)) / 1000000, digits = 1), 'km²', sep = ' ') # Get the area and divide by 1 million for km2
+
+```
+
+\
+`r vessel` undertook **`r length(unique(df$uniqueID))`** fishing trips between `r paste(format_with_suffix(start_date), 'and', format_with_suffix(end_date), sep = ' ')`. The most fished species was **`r species_list$Species[1]`**, 
+with **`r as.integer(species_list$kg[1])` kg** landed in total. 
+With an average iVMS accuracy of ± 250 metres, 
+`r vessel` fished on **`r area`** of the IoM Territorial Sea.
+\
+```{r Make table of species catch, echo = FALSE, warning = FALSE}
+knitr::kable(species_list, row.names = FALSE, align = "lccccc", caption = "Annual catch statistics") %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% 
+  column_spec(1, width = "4cm") # make left column wider to increase table size
+```
+
+\
+\
+
+```{r Find any mismatching data between logbook and VMS datasets, echo = FALSE, warning = FALSE}
+df = filter(Join5, Departure.Date > start_date & Departure.Date < end_date & Vessel.Name == vessel)
+
+vessel_code = df$VE_REF[1]
+
+vms_vessel = filter(vms, VE_REF == vessel_code)
+logbook_vessel = filter(logbook, RSS.No == vessel_code)
+
+# I had to set these as null for each vessel, otherwise it takes the values from the old vessel if the 'if' statement is not met
+vms_df = NULL
+lb_df = NULL
+vms_only = NULL
+lb_only = NULL
+
+if (isTRUE(nrow(logbook_vessel) > 0 && nrow(vms_vessel) > 0)) {
+lb_df = data.frame('vessel_date' = unique(logbook_vessel$uniqueID), # Basically getting all VMS and logbook records for the vessel
+                   'logbook' = 1,
+                   'vms' = 0)
+vms_df = data.frame('vessel_date' = unique(vms_vessel$uniqueID),
+                   'logbook' = 0,
+                   'vms' = 1)
+
+for (i in 1:nrow(lb_df)) {
+  if (isTRUE(nrow(filter(vms_df, vessel_date == lb_df$vessel_date[i])) > 0)) { # If the vms_df vesseldates match current lb_df vesseldate, update the current vms row to '1', so it shows that the vms data matches with the logbook data
+    lb_df$vms[i] = 1
+  }
+}
+for (i in 1:nrow(vms_df)) {
+  if (isTRUE(nrow(filter(lb_df, vessel_date == vms_df$vessel_date[i])) > 0)) { # Do the same for logbook
+    vms_df$logbook[i] = 1
+  }
+}
+
+vms_lb = rbind(vms_df, lb_df) 
+
+vms_lb_new = vms_lb %>%
+  group_by(vessel_date) %>%
+  summarise(logbook = mean(logbook),
+            vms = mean(vms))
+
+lb_only = filter(vms_lb_new, logbook == 1 & vms == 0) # Get records with only logbook (1) and no vms (0)
+vms_only = filter(vms_lb_new, vms == 1 & logbook == 0) # Vice versa
+
+logbook_no_vms = nrow(lb_only) # number of trips with logbook and no vms
+vms_no_logbook = nrow(vms_only) # number of trips with vms and no logbook
+
+unmatched = data.frame('Logbook_no_VMS' = nrow(lb_only),
+                       'VMS_no_Logbook' = nrow(vms_only))
+
+colnames(unmatched) = gsub("_", " ", colnames(unmatched)) # Remove underscore for report
+}
+```
+
+```{r Make table of VMS and logbook mismatch, echo = FALSE, warning = FALSE}
+if (isTRUE(nrow(logbook_vessel) > 0 && nrow(vms_vessel) > 0)) { # If there are vms and logbook entries...
+knitr::kable(unmatched, row.names = FALSE, align = "cc", caption = "Number of trips with missing data") %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) # make left column wider to increase table size
+}
+```
+
+\
+\
+
+```{r Find error reasonings, echo = FALSE, warning = FALSE, message = FALSE}
+if (isTRUE(nrow(lb_only) > 0 | nrow(vms_only) > 0)) { # If there are any cases of vms and no logbook or vice versa...
+  vms_lb$check = NA
+  vms_lb$exclude_iVMS = 0
+  for (i in 1:nrow(vms_lb)) { # Go through every row of vms_lb
+    for (j in 1:nrow(check)) { # And every row of check (comments file)
+      if (isTRUE(vms_lb$vessel_date[i] == check$uniqueID[j])) { # If the current rows on each have matching uniqueIDs...
+        vms_lb$check[i] = check$comment[j] # Add the comment from check into the current row of vms_lb
+        vms_lb$exclude_iVMS[i] = check$Exclude.IVMS[j]
+      }
+    }
+  }
+}
+comments = filter(vms_lb, is.na(check) == 'FALSE') # Only get rows where comments are present
+comment_table = NA
+if (nrow(comments) > 0) { # If there are comments present..
+  comment_table = comments %>%
+  group_by(check, exclude_iVMS) %>% # Group by whether they were included or excluded (as sometimes they have the same comment but are either included or excluded)
+  summarise('No. Records' = n()) # Get the number of rows in that group to represent how many comments met that criteria
+  colnames(comment_table)[1] = 'Comment'
+  comment_table$`iVMS Excluded` = comment_table$exclude_iVMS
+  comment_table = comment_table[, -2]
+  
+  for (i in 1:nrow(comment_table)) {
+    if (comment_table$`iVMS Excluded`[i] != 0) {
+      comment_table$`iVMS Excluded`[i] = 'Y'
+    }
+    if (comment_table$`iVMS Excluded`[i] == 0) {
+      comment_table$`iVMS Excluded`[i] = 'N'
+    }
+  }
+}
+
+```
+
+```{r Make table of VMS and logbook mismatch reasonings, echo = FALSE, warning = FALSE}
+if (is.data.frame(comment_table) == 'TRUE') { # This is why i set it as an NA object before, if it has been created it won't be NA
+  knitr::kable(comment_table, row.names = FALSE, align = "lcc", caption = "Trips with comments") %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% # make left column wider to increase table size
+    column_spec(1, width = "8cm")
+}
+```
+
+
+\
+\
+
+```{r Make plot of mismatched VMS if present, echo = FALSE, message = FALSE, warning = FALSE, fig.cap=paste(vessel, " VMS records with no logbook data or comment between ", format_with_suffix(start_date), ' and ', format_with_suffix(end_date), ".", sep = '')}
+
+if (is.null(vms_only) == 'FALSE') { # If there are rows in the vms_only dataframe...
+  vms_only = vms_only %>%
+  left_join(check, by = c("vessel_date" = "uniqueID"))
+vms_only <- vms_only %>%
+  mutate(Exclude.IVMS = replace_na(Exclude.IVMS, 0))
+
+vms_only = filter(vms_only, Exclude.IVMS == 0)
+
+if ((nrow(vms_only) > 0) == 'TRUE') {  
+  
+  trips = vms_only$vessel_date
+  vms_only_df = filter(vms, uniqueID %in% trips)
+  
+  
+  latitude <- mean(vms_only_df$SI_LATI)
+  
+  
+  # Convert meters to degrees for latitude and longitude at the given latitude - this is an alternative to transforming
+  meters_to_deg_lat <- 1 / 111320  
+  meters_to_deg_lon <- 1 / (111320 * cos(latitude * pi / 180)) 
+  
+  # Define bin size for grid
+  bin_size_deg_lat <- 100 * meters_to_deg_lat
+  bin_size_deg_lon <- 100 * meters_to_deg_lon
+  
+  # plot limits with padding
+  long_min <- min(vms_only_df$SI_LONG) - 0.05
+  long_max <- max(vms_only_df$SI_LONG) + 0.05
+  lat_min <- min(vms_only_df$SI_LATI) - 0.05
+  lat_max <- max(vms_only_df$SI_LATI) + 0.05
+  
+  # range of longitude and latitude
+  range_long <- long_max - long_min
+  range_lat <- lat_max - lat_min
+  
+  # To make the plot square, we need to adjust the axis limits to make both longitude and latitude ranges equal
+  # We scale the longitude axis by the cosine of the latitude
+  scaled_range_long <- range_long * cos(latitude * pi / 180)
+  
+  # Adjust limits for longitude and latitude to make the plot square
+  if (scaled_range_long > range_lat) {
+    extra <- (scaled_range_long - range_lat) / 2
+    lat_min <- lat_min - extra
+    lat_max <- lat_max + extra
+  } else {
+    extra <- (range_lat - scaled_range_long) / 2
+    long_min <- long_min - extra
+    long_max <- long_max + extra
+  }
+  
+  ggplot() +
+    geom_bin2d(data = vms_only_df, aes(x = SI_LONG, y = SI_LATI), 
+               binwidth = c(bin_size_deg_lon, bin_size_deg_lat)) +
+    scale_fill_viridis_c(name = "iVMS Pings", trans = "log",
+                         breaks = c(1, 5, 10, 50, 100, 250, 500, 1000),
+                         guide = guide_colorbar(barheight = unit(6, "cm"))) +
+    geom_sf(data = IoM, fill = "lightgrey") +   
+    geom_sf(data = IOM3NM, fill = "transparent") + 
+    geom_sf(data = IOM12NM, fill = "transparent") +
+    coord_sf(xlim = c(long_min, long_max), ylim = c(lat_min, lat_max), expand = FALSE) +
+    xlab("") +
+    ylab("") +
+    annotation_scale(location = "bl") +
+    annotation_north_arrow(location = "tl", style = north_arrow_fancy_orienteering()) +
+    theme_bw() +
+    theme(
+      plot.margin = margin(t = 10, r = 10, b = 0, l = 10),
+      axis.title.x = element_blank())
+    
+  }
+}
+```
+
+\
+\
+
+```{r Calculate fishing area in km squared, echo = FALSE, warning = FALSE}
+# This is the same code as at the start of the report
+coords <- cbind(df$SI_LONG, df$SI_LATI)
+sfpoints <- st_as_sf(df, coords = c("SI_LONG", "SI_LATI"), crs = 4326)
+sfpoints_proj <- st_transform(sfpoints, crs = 27700) 
+sfpoints_buffered <- st_buffer(sfpoints_proj, dist = 250)
+
+test2 = st_union(sfpoints_buffered$geometry)
+
+area = paste(round(as.numeric(st_area(test2)) / 1000000, digits = 1), 'km²', sep = ' ')
+```
+
+\
+\
+
+```{r Make plot of total fishing activity, echo = FALSE, message = FALSE, warning = TRUE, fig.cap=paste("Total fishing activity (< 3 kts) of ", vessel, " with VMS and logbook data between ", format_with_suffix(start_date), ' and ', format_with_suffix(end_date), ".", sep = "")}
+
+# Combined map for all species (Join5)
+bc = filter(Join5, Departure.Date > start_date & Departure.Date < end_date & Vessel.Name == vessel)
+
+latitude <- mean(bc$SI_LATI)
+
+# Same code as before for getting the rasters to be 1km2 without transforming
+meters_to_deg_lat <- 1 / 111320  
+meters_to_deg_lon <- 1 / (111320 * cos(latitude * pi / 180)) 
+
+# Define bin size for grid
+bin_size_deg_lat <- 100 * meters_to_deg_lat
+bin_size_deg_lon <- 100 * meters_to_deg_lon
+
+# plot limits with padding
+long_min <- min(bc$SI_LONG) - 0.05
+long_max <- max(bc$SI_LONG) + 0.05
+lat_min <- min(bc$SI_LATI) - 0.05
+lat_max <- max(bc$SI_LATI) + 0.05
+
+# range of longitude and latitude
+range_long <- long_max - long_min
+range_lat <- lat_max - lat_min
+
+# To make the plot square, we need to adjust the axis limits to make both longitude and latitude ranges equal
+# We scale the longitude axis by the cosine of the latitude
+scaled_range_long <- range_long * cos(latitude * pi / 180)
+
+# Adjust limits for longitude and latitude to make the plot square
+if (isTRUE(scaled_range_long > range_lat)) {
+  extra <- (scaled_range_long - range_lat) / 2
+  lat_min <- lat_min - extra
+  lat_max <- lat_max + extra
+} else {
+  extra <- (range_lat - scaled_range_long) / 2
+  long_min <- long_min - extra
+  long_max <- long_max + extra
+}
+
+ggplot() +
+  geom_bin2d(data = bc, aes(x = SI_LONG, y = SI_LATI), 
+             binwidth = c(bin_size_deg_lon, bin_size_deg_lat)) +
+  scale_fill_viridis_c(name = "iVMS Pings", trans = "log",
+                       breaks = c(1, 5, 10, 50, 100, 250, 500, 1000),
+                       guide = guide_colorbar(barheight = unit(6, "cm"))) +
+  geom_sf(data = IoM, fill = "lightgrey") +   
+  geom_sf(data = IOM3NM, fill = "transparent") + 
+  geom_sf(data = IOM12NM, fill = "transparent") +
+  coord_sf(xlim = c(long_min, long_max), ylim = c(lat_min, lat_max), expand = FALSE) +
+  xlab(NULL) +
+  ylab(NULL) +
+  annotation_scale(location = "bl") +
+  annotation_north_arrow(location = "tl", style = north_arrow_fancy_orienteering()) +
+  theme_bw() +
+  theme(
+    plot.margin = margin(t = 10, r = 10, b = 0, l = 10),
+    axis.title.x = element_blank())
+```
+
+\
+\
+
+```{r Make seperate plot for each species, fig.cap = paste("Species-specific fishing sites of ", vessel, " between ", format_with_suffix(start_date), ' and ', format_with_suffix(end_date), ". Species-specific activity includes 'Crab and Lobster', 'Whelk', and 'None' (i.e., mixed-species fishing). Any additional species are not considered when determining target species.", sep = ""), echo = FALSE, message = TRUE, warning = FALSE, fig.width = 10, fig.height = 6}
+df = filter(Join5, Departure.Date > start_date & Departure.Date < end_date & Vessel.Name == vessel)
+df$species = ''
+
+df_means <- df %>%
+  group_by(uniqueID) %>%
+  summarise(
+    across(starts_with("LE_KG_"), mean, na.rm = TRUE),
+    'lat' = nth(SI_LATI, ceiling(n() / 2)), # this gets the central lat and lon for a particular trip rather than the mean or first
+    'lon' = nth(SI_LONG, ceiling(n() / 2))
+  )
+
+# only make species-specific plots for crab + lobster or whelk
+
+df_means$target = 'None'
+df_means$target = if_else(df_means$LE_KG_WHE / (df_means$LE_KG_WHE + df_means$LE_KG_CRE + df_means$LE_KG_LBE) == 1, 'Whelk', df_means$target)
+df_means$target = if_else((df_means$LE_KG_CRE + df_means$LE_KG_LBE) / (df_means$LE_KG_WHE + df_means$LE_KG_CRE + df_means$LE_KG_LBE) == 1, 'Crab and Lobster', df_means$target)
+
+df_long_crust <- df_means %>%
+  pivot_longer(
+    cols = starts_with("LE_KG_"), # transposing the dataset so that the species and kg are two columns rather than having columns for each species and their weight
+    names_to = "sp",            
+    values_to = "kg"                 
+  ) %>%
+  filter(sp == 'LE_KG_CRE' | sp == 'LE_KG_LBE' | sp == 'LE_KG_WHE')
+
+df_long_crust$lat = NA
+df_long_crust$lon = NA
+
+for (i in 1:nrow(df_means)) {
+  for (j in 1:nrow(df_long_crust)) {
+    if (isTRUE(df_means$uniqueID[i] == df_long_crust$uniqueID[j])) { # if the unique IDs match across the two datasets, copy the lat and lon values over
+      df_long_crust$lat[j] = df_means$lat[i]
+      df_long_crust$lon[j] = df_means$lon[i]
+    }
+  }
+}
+
+df_long_crust$name = NA
+
+for (i in 1:nrow(df_long_crust)) {
+  if (df_long_crust$sp[i] == 'LE_KG_CRE') {
+    df_long_crust$name[i] = 'Crab'
+  }
+  if (df_long_crust$sp[i] == 'LE_KG_LBE') {
+    df_long_crust$name[i] = 'Lobster'
+  }
+if (df_long_crust$sp[i] == 'LE_KG_WHE') {
+    df_long_crust$name[i] = 'Whelk'
+  }
+}
+
+
+df_long_other <- df_means %>%
+  pivot_longer(
+    cols = starts_with("LE_KG_"), 
+    names_to = "sp",            
+    values_to = "kg"                 
+  ) %>%
+  filter(sp != 'LE_KG_CRE' & sp != 'LE_KG_LBE' & sp != 'LE_KG_WHE')
+
+df_long_other$name = NA
+
+for (i in 1:nrow(df_long_other)) {
+  if (df_long_other$sp[i] == 'LE_KG_DGH') {
+    df_long_other$name[i] = 'Dogfishes'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_HER') {
+    df_long_other$name[i] = 'Atlantic herring'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_MAC') {
+    df_long_other$name[i] = 'Atlantic mackerel'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_POL') {
+    df_long_other$name[i] = 'Pollack'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_SQC') {
+    df_long_other$name[i] = 'Squid'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_SQR') {
+    df_long_other$name[i] = 'European squid'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_HKE') {
+    df_long_other$name[i] = 'European hake'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_MON') {
+    df_long_other$name[i] = 'Monkfish'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_NEP') {
+    df_long_other$name[i] = 'Norway lobster'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_POK') {
+    df_long_other$name[i] = 'Saithe (coalfish)'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_TUR') {
+    df_long_other$name[i] = 'Turbot'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_LOQ') {
+    df_long_other$name[i] = 'Squat lobster'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_RJC') {
+    df_long_other$name[i] = 'Thornback ray'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_SAN') {
+    df_long_other$name[i] = 'Sandeel'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_GUX') {
+    df_long_other$name[i] = 'Gurnard'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_LIN') {
+    df_long_other$name[i] = 'Ling'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_RJA') {
+    df_long_other$name[i] = 'White skate'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_SCE') {
+    df_long_other$name[i] = 'King scallop'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_USB') {
+    df_long_other$name[i] = 'Ballan wrasse'
+  }
+  if (df_long_other$sp[i] == 'LE_KG_WRA') {
+    df_long_other$name[i] = 'Cuckoo wrasse'
+  }
+}
+
+df_new_crust = filter(df_long_crust, kg > 0) # Only get species that have been caught
+df_new_other = filter(df_long_other, kg > 0) %>%
+  group_by(uniqueID) %>%
+  summarise('other' = first(name))
+
+df_new_crust = left_join(df_new_crust, df_new_other, by = 'uniqueID')
+
+x_buffered_min <- min(df_new_crust$lon) - 0.1
+x_buffered_max <- max(df_new_crust$lon) + 0.1
+y_buffered_min <- min(df_new_crust$lat) - 0.1
+y_buffered_max <- max(df_new_crust$lat) + 0.1
+
+  ggplot() +
+  geom_raster(data = bathy, aes(x = longitude, y = latitude, fill = abs(elevation))) +
+  scale_fill_viridis_c(name = 'Depth (m)', option = 'mako', direction = -1, 
+                       limits = range(abs(filter(bathy, latitude < y_buffered_max & latitude > y_buffered_min &
+                                                   longitude > x_buffered_min & longitude < x_buffered_max)$elevation))) +
+  geom_point(data = df_new_crust, aes(x = lon, y = lat), col = 'red', size = 0.5) +
+  facet_wrap(~target, nrow = 1) + # make it two columns unless more than 4 species
+  labs() +
+  scale_x_continuous(limits = c(x_buffered_min, x_buffered_max), expand = c(0, 0), 
+                     breaks = pretty(seq(x_buffered_min, x_buffered_max, 0.001), n = 2)) +
+  scale_y_continuous(limits = c(y_buffered_min, y_buffered_max), expand = c(0, 0), 
+                     breaks = pretty(seq(y_buffered_min, y_buffered_max, 0.001), n = 3)) +
+  xlab(NULL) +
+  ylab(NULL) +
+  geom_sf(data = IoM, fill = 'grey') +
+  theme_bw() +
+  theme(panel.grid = element_blank(),
+        axis.title.x = element_blank(),
+        plot.margin = unit(c(1,1,0,1), "cm"))
+  
+```
+
+\
+\
+\
+
+```{r Calculate LPUE errors and make dataframe, echo = FALSE, message = FALSE, warning = FALSE}
+
+df = filter(logbook, Departure.Date > start_date & Departure.Date < end_date & Vessel.Name == vessel)
+df$LE_YEAR = lubridate::year(df$Departure.Date)
+df$SI_Month = months.POSIXt(df$Departure.Date, abbreviate = TRUE)
+df$SI_Month = factor(df$SI_Month, levels = month.abb)
+
+df_monthly = df %>% # get basic metrics for all crustaceans
+  group_by(uniqueID, LE_YEAR, SI_Month) %>%
+  summarise(cre_kg = first(LE_KG_CRE),
+            lbe_kg = first(LE_KG_LBE),
+            whe_kg = first(LE_KG_WHE),
+            cre_pots = first(Pot_No_CRE),
+            lbe_pots = first(Pot_No_LBE),
+            whe_pots = first(Pot_No_WHE))
+
+# determine whether crab/lobster trips were targeting either (> 80% total)
+df_monthly$crab_or_lobster = NA
+df_monthly$crab_or_lobster = if_else(df_monthly$cre_kg / (df_monthly$cre_kg + df_monthly$lbe_kg) >= 0.8, 'Crab', df_monthly$crab_or_lobster)
+df_monthly$crab_or_lobster = if_else(df_monthly$lbe_kg / (df_monthly$cre_kg + df_monthly$lbe_kg) >= 0.8, 'Lobster', df_monthly$crab_or_lobster)
+
+species_list = character()
+
+# Remove rows with either 0 pots and > 1 kg landings or vice versa
+
+if (isTRUE(nrow(df_monthly) > 0)) {
+whelk = data.frame(uniqueID = df_monthly$uniqueID,
+                   LE_YEAR = df_monthly$LE_YEAR,
+                   SI_Month = df_monthly$SI_Month,
+                   species = 'Whelk',
+                   kg = df_monthly$whe_kg,
+                   pots = df_monthly$whe_pots,
+                   crab_or_lobster = df_monthly$crab_or_lobster,
+                   remove = 'n')
+crab = data.frame(uniqueID = df_monthly$uniqueID,
+                   LE_YEAR = df_monthly$LE_YEAR,
+                   SI_Month = df_monthly$SI_Month,
+                   species = 'Crab',
+                   kg = df_monthly$cre_kg,
+                   pots = df_monthly$cre_pots,
+                  crab_or_lobster = df_monthly$crab_or_lobster,
+                   remove = 'n')
+lobster = data.frame(uniqueID = df_monthly$uniqueID,
+                   LE_YEAR = df_monthly$LE_YEAR,
+                   SI_Month = df_monthly$SI_Month,
+                   species = 'Lobster',
+                   kg = df_monthly$lbe_kg,
+                   pots = df_monthly$lbe_pots,
+                   crab_or_lobster = df_monthly$crab_or_lobster,
+                   remove = 'n')
+
+whelk_p_nol = 0 # pots but no landings
+whelk_l_nop = 0 # landings but no pots
+lobster_p_nol = 0
+lobster_l_nop = 0
+crab_p_nol = 0
+crab_l_nop = 0
+
+for (i in 1:nrow(whelk)) {
+  if (whelk$pots[i] > 0 && whelk$kg[i] == 0) {
+    whelk_p_nol = whelk_p_nol + 1 # adds 1 to the number of whelk pots with no landings every time it gets a row with that criteria
+    whelk$remove[i] = 'y'
+  }
+  if (whelk$kg[i] > 0 && whelk$pots[i] == 0) {
+    whelk_l_nop = whelk_l_nop + 1 # adds 1 to the number of whelk landings with no pots every time it gets a row with that criteria
+    whelk$remove[i] = 'y'
+  }
+  if (whelk$kg[i] == 0 && whelk$pots[i] == 0) {
+    whelk$remove[i] = 'y'
+  }
+}
+for (i in 1:nrow(crab)) {
+  if (crab$pots[i] > 0 && crab$kg[i] == 0) {
+    crab_p_nol = crab_p_nol + 1
+    crab$remove[i] = 'y'
+  }
+  if (crab$kg[i] > 0 && crab$pots[i] == 0) {
+    crab_l_nop = crab_l_nop + 1
+    crab$remove[i] = 'y'
+  }
+  if (crab$kg[i] == 0 && crab$pots[i] == 0) {
+    crab$remove[i] = 'y'
+  }
+}
+for (i in 1:nrow(lobster)) {
+  if (lobster$pots[i] > 0 && lobster$kg[i] == 0) {
+    lobster_p_nol = lobster_p_nol + 1
+    lobster$remove[i] = 'y'
+  }
+  if (lobster$kg[i] > 0 && lobster$pots[i] == 0) {
+    lobster_l_nop = lobster_l_nop + 1
+    lobster$remove[i] = 'y'
+  }
+  if (lobster$kg[i] == 0 && lobster$pots[i] == 0) {
+    lobster$remove[i] = 'y'
+  }
+}
+
+species_list = character()
+if (nrow(filter(crab, pots > 0 | kg > 0)) > 0) {
+  species_list = c(species_list, "Crab")
+}
+if (nrow(filter(lobster, pots > 0 | kg > 0)) > 0) {
+  species_list = c(species_list, "Lobster")
+}
+if (nrow(filter(whelk, pots > 0 | kg > 0)) > 0) {
+  species_list = c(species_list, "Whelk")
+}
+
+if (isTRUE(length(species_list) > 1)) { # if there are species in the list, continue
+  removed = data.frame('Species' = species_list, # make a new dataframe to store the mismatched pots/landings counts
+                     'Records with pots but no catch' = 0,
+                     'Records with catch but no pots' = 0)
+  for (i in 1:nrow(removed)) {
+  if (isTRUE(removed$Species[i] == 'Crab')) { # check whether each species is present before continuing
+    removed$Records.with.pots.but.no.catch[i] = paste(crab_p_nol, 'out of', nrow(filter(crab, pots > 0 & kg > 0)), sep = ' ')
+    removed$Records.with.catch.but.no.pots[i] = paste(crab_l_nop, 'out of', nrow(filter(crab, pots > 0 & kg > 0)), sep = ' ')
+  }
+  if (isTRUE(removed$Species[i] == 'Lobster')) {
+    removed$Records.with.pots.but.no.catch[i] = paste(lobster_p_nol, 'out of', nrow(filter(lobster, pots > 0 & kg > 0)), sep = ' ')
+    removed$Records.with.catch.but.no.pots[i] = paste(lobster_l_nop, 'out of', nrow(filter(lobster, pots > 0 & kg > 0)), sep = ' ')
+  }
+  if (isTRUE(removed$Species[i] == 'Whelk')) {
+    removed$Records.with.pots.but.no.catch[i] = paste(whelk_p_nol, 'out of', nrow(filter(whelk, pots > 0 & kg > 0)), sep = ' ')
+    removed$Records.with.catch.but.no.pots[i] = paste(whelk_l_nop, 'out of', nrow(filter(whelk, pots > 0 & kg > 0)), sep = ' ')
+  }
+  }
+  
+  crab = filter(crab, remove == 'n') # only keep ones that were not marked as remove
+  lobster = filter(lobster, remove == 'n')
+  whelk = filter(whelk, remove == 'n')
+  
+  df_combined = rbind(crab, lobster, whelk)
+
+if (nrow(df_combined) > 0) { 
+  
+  df_combined <- df_combined %>%
+    mutate(lpue = kg / pots)
+  
+  df_combined$lpue = as.numeric(df_combined$lpue)
+  
+  # remove LPUE calculations where crab or lobster weren't target species
+  for (i in 1:nrow(df_combined)) {
+    if (isTRUE(df_combined$species[i] == 'Crab' && 
+               df_combined$crab_or_lobster[i] != 'Crab' |
+               is.na(df_combined$crab_or_lobster[i]))) {
+      df_combined$lpue[i] = NA
+    }
+    if (isTRUE(df_combined$species[i] == 'Lobster' && 
+               df_combined$crab_or_lobster[i] != 'Lobster' |
+               is.na(df_combined$crab_or_lobster[i]))) {
+      df_combined$lpue[i] = NA
+    }
+  }
+  
+  df_combined_new <- df_combined %>%
+    group_by(LE_YEAR, SI_Month, species) %>%
+    summarise(
+      mean_lpue = mean(lpue, na.rm = TRUE), 
+      iqr = IQR(lpue, na.rm = TRUE),
+      lower = quantile(lpue, 0.25, na.rm = TRUE),  
+      upper = quantile(lpue, 0.75, na.rm = TRUE),
+      .groups = "drop"
+    )
+}
+colnames(removed) <- gsub("\\.", " ", colnames(removed))
+  
+} 
+}
+
+```
+
+\
+\
+
+```{r Make error table, echo = FALSE, message = FALSE, warning = FALSE}
+if (isTRUE(length(species_list) > 1)) {
+  knitr::kable(removed, row.names = FALSE, align = "lcc", caption = "Records containing mismatch errors") %>% # basic table design
+  kable_styling(latex_options = c("hold_position", "scale_down")) %>% 
+  column_spec(1, width = "4cm") # make left column wider to increase table size
+}
+```
+
+\
+\
+
+```{r Plot monthly LPUE with variability, fig.cap = paste("Landings per unit effort (LPUE) of ", vessel, " between ", format_with_suffix(start_date), ' and ', format_with_suffix(end_date), ".", sep = ""), echo = FALSE, message = FALSE, warning = FALSE}
+# If there are species to plot the LPUE for, plot them
+if (isTRUE(length(species_list) > 1)) {
+if (nrow(df_combined) > 0) {
+  df_combined_new$SI_Month <- as.numeric(df_combined_new$SI_Month)
+  ggplot(data = df_combined_new, aes(x = SI_Month, y = mean_lpue, col = species)) +
+  geom_point() +
+  geom_line() +
+  labs(col = 'Species') +
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.2) +
+  xlab('Month') +
+  ylab('LPUE') +
+  scale_y_continuous(limits = c(0, max(df_combined_new$upper) + 0.02)) +
+  scale_x_continuous(breaks = seq(1, 12, 1)) +
+  theme_classic()
+}
+}
+```
+
+
+
+
+
