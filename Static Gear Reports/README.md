@@ -58,6 +58,48 @@ tinytex::install_tinytex()
 - bu_retained _(whelk retained in kg)_
 - hg_retained _(lobster retained in kg)_
 - cp_retained _(crab retained in kg)_
+
+
+If reference data is not available, simply add a data file with the same column names have all row values set to 0.
 <br />
 
-## Step 2: Configuring the Report Generator
+## Step 2: Configuring the Report Generator Parameters
+Configure the desired report parameters with the options below:
+1. Setting the report period: **quarter**
+- _1_, _2_, _3_, or _4_: sets the covered period of the report to the respective quarter of the calendar year (e.g., 1 = Q1).
+- _Annual_: sets the covered period of the report to the entire year.
+- _All_: uses the full duration of data available for the report.
+- _Custom_: allows a specified date range for the report period.
+
+2. Setting the report year: **year**
+- A single numeric value for desired year (e.g., 2024).
+- Not important if the quarter is set to either _All_ or _Custom_.
+
+3. Setting report confidentiality: **DEFA**
+- _TRUE_: not for public dissemination (spatial plots included).
+- _FALSE_: public facing format (spatial plots excluded).
+
+4. Setting target species of report: **species**
+- _Whelk_: target species is common whelk.
+- _Crab and lobster_: target species are crab and lobster.
+
+5. Start date of report period (only for quarter == 'Custom'): **start_date**
+- Date given in _dd/mm/YYYY_ format.
+
+6. End date of report period (only for quarter == 'Custom'): **end_date**
+- Date given in _dd/mm/YYYY_ format.
+<br />
+
+## Step 3: Setting the File Directories
+Set the following object names with their respective directories:
+- **reports_dir**: directory of the current code file (where outputs will be saved).
+- **joined_data_dir**: directory of the 'Join[].csv' files (e.g., Join5.csv).
+- **cleaned_data_dir**: directory of the cleaned VMS and logbook files.
+- **reference_data_dir**: directory of the reference data file.
+- **shapefiles_dir**: directory of the downloaded shapefiles.
+<br />
+
+## Step 4: Run the Static Report Generator
+Run the annotated line with the open '{' bracket. This should now begin the report generator, which will create your configured report and save the output in the 'reports_dir' directory in a PDF format.
+
+
